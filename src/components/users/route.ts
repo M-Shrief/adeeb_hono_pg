@@ -398,6 +398,55 @@ users_route.put(
     }    
 )
 
+users_route.put(
+    "/users/:id/ban",
+    describeRoute({
+        tags: ["Users"],
+        summary: "Ban User",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Banned User", one_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    id_param_validator(),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization")
+            let payload = await verify_token(auth_header!) // header was already validated
+            if (!payload) {
+                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
+            }
+
+            let permissions = payload["permissions"] as string[]
+            let authorized_list = [
+                create_permission(RoleEnum.MANAGMENT, OP.WRITE),
+                create_permission(RoleEnum.DBA, OP.WRITE),
+                create_permission(RoleEnum.ANALYTICS, OP.WRITE),
+            ]
+            
+            let is_authorized = check_permission(authorized_list, permissions, OP.WRITE)
+            if (!is_authorized) {
+                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
+            }
+            
+            let id = c.req.param("id")
+
+            const query = sql`UPDATE users set roles =  (select array_agg(distinct e) from unnest(array_append(users.roles, 'Banned'::roles_enum)) e) WHERE id = ${id}`;
+            await db.execute(query);
+
+            return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
+        } catch(e) {
+            logger.error({error: e}, "Error in PUT /users/:id")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
+
+    }    
+)
+
 
 users_route.delete(
     "/users/me",
