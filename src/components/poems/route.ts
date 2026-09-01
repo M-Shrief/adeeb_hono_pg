@@ -7,10 +7,11 @@ import { sql, getTableColumns, eq } from 'drizzle-orm';
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
 import { db } from "../../database/index.js"
 import { poem_table } from "../../database/schemas.js"
-import { one_schema, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
-///// Utils
+import {one_schema} from "../../schemas/poem.js"
+import { get_one_res, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
 import { auth_header_validator, id_param_validator, json_validator, query_validator } from '../../utils/validators.js'
-import { HttpStatusCode, base_response_schema, queries_schema_for_get_all_req, get_described_route, get_all_schema, describe_jwt_security } from '../../utils/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
+import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { logger } from '../../utils/logger.js';
 import { verify_adminstrator } from '../../utils/auth.js';
 
@@ -67,7 +68,7 @@ poem_route.get(
         tags: ["Poems"],
         summary: "Get One",
         responses: {
-           ...get_described_route(HttpStatusCode.OK, "Get Poem", one_schema),
+           ...get_described_route(HttpStatusCode.OK, "Get Poem", get_one_res),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "Poem's not Found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -94,6 +95,21 @@ poem_route.get(
                     reviewed: true,
 
                     adeeb_id: true,
+                },
+                with: {
+                    adeeb: {
+                        columns: {
+                            id: true,
+                            name: true,
+                        }
+                    },
+                    chosen_verses: {
+                        columns: {
+                            id: true,
+                            verses: true,
+                            is_couplet: true,
+                        }
+                    },
                 },
                 where: (poem_table, { eq }) => eq(poem_table.id, id),
             })
