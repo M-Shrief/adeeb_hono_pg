@@ -1,21 +1,25 @@
 import {
-  pipe,
   optional,
   array,
   object,
-  string,
-  trim,
-  maxLength,
-  minLength,
   number,
 } from 'valibot';
 /////////////
-// utils
-import { uuid_schema, verses_schema, is_couplet_schema, reviewed_schema,  created_at, updated_at } from '../../utils/schemas.js';
+import { uuid_schema, verses_schema, is_couplet_schema, reviewed_schema,  created_at, updated_at } from '../../schemas/general.js';
+import { intro_schema } from "../../schemas/poem.js"
+import { minimal_schema as adeeb_schema } from "../../schemas/adeeb.js"
+import { minimal_schema as chosen_verses_schema } from "../../schemas/chosen_verse.js"
 
 
-const intro_schema = pipe(string(), trim(), minLength(4), maxLength(256));
-
+export const get_one_res = object({
+  _id: uuid_schema,
+  intro: intro_schema,
+  verses: verses_schema,
+  is_couplet: is_couplet_schema,
+  reviewed: reviewed_schema,
+  adeeb: adeeb_schema,
+  chosen_verses: array(chosen_verses_schema)
+})
 
 export const one_schema = object({
   id: uuid_schema,
