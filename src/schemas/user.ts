@@ -21,12 +21,12 @@ export const roles_schema = array(enum_schema(RoleEnum));
 
 
 export const one_schema = object({
-  _id: uuid_schema,
+  id: uuid_schema,
   username: username_schema,
   roles: roles_schema
 })
 
 export const minimal_schema = object({
-  _id: uuid_schema,
+  id: uuid_schema,
   username: username_schema,
 })

@@ -12,7 +12,7 @@ import { minimal_schema as chosen_verses_schema } from "../../schemas/chosen_ver
 import { minimal_schema as prose_qoutes_schema } from "../../schemas/prose_qoute.js"
 
 export const get_one_res = object({
-  _id: uuid_schema,
+  id: uuid_schema,
   name: name_schema,
   time_period: time_period_schema,
   bio: bio_schema,

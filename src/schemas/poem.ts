@@ -16,8 +16,8 @@ export const intro_schema = pipe(string(), trim(), minLength(4), maxLength(256))
 
 
 export const one_schema = object({
-  _id: uuid_schema,
-  adeeb: uuid_schema,
+  id: uuid_schema,
+  adeeb_id: uuid_schema,
   intro: intro_schema,
   verses: verses_schema,
   is_couplet: is_couplet_schema,
@@ -25,6 +25,6 @@ export const one_schema = object({
 })
 
 export const minimal_schema = object({
-  _id: uuid_schema,
+  id: uuid_schema,
   intro: intro_schema,
 })

@@ -19,7 +19,7 @@ export const outfit_color_schema = pipe(string(), trim(), maxLength(64));
 
 
 export const one_schema = object({
-  _id: uuid_schema,
+  id: uuid_schema,
 
   font_type: font_type_schema,
   font_color: font_color_schema,
@@ -30,15 +30,15 @@ export const one_schema = object({
   is_couplet: optional(is_couplet_schema),
   qoute: optional(qoute_schema),
 
-  user: optional(uuid_schema),
-  order: optional(uuid_schema),
-  poem: optional(uuid_schema),
-  chosen_verses: optional(uuid_schema),
-  prose_qoute: optional(uuid_schema),
+  user_id: optional(uuid_schema),
+  order_id: optional(uuid_schema),
+  poem_id: optional(uuid_schema),
+  chosen_verses_id: optional(uuid_schema),
+  prose_qoute_id: optional(uuid_schema),
 })
 
 export const minimal_schema = object({
-  _id: uuid_schema,
+  id: uuid_schema,
 
   font_type: font_type_schema,
   font_color: font_color_schema,
@@ -49,7 +49,7 @@ export const minimal_schema = object({
   is_couplet: optional(is_couplet_schema),
   qoute: optional(qoute_schema),
 
-  poem: optional(uuid_schema),
-  chosen_verses: optional(uuid_schema),
-  prose_qoute: optional(uuid_schema),
+  poem_id: optional(uuid_schema),
+  chosen_verses_id: optional(uuid_schema),
+  prose_qoute_id: optional(uuid_schema),
 })

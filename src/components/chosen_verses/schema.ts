@@ -11,14 +11,14 @@ import { minimal_schema as adeeb_schema } from "../../schemas/adeeb.js"
 import { minimal_schema as poem_schema } from "../../schemas/poem.js"
 
 export const get_one_res = object({
-  _id: uuid_schema,
+  id: uuid_schema,
   tags: tags_schema,
   verses: verses_schema,
   is_couplet: is_couplet_schema,
   reviewed: reviewed_schema,
 
-  adeeb: adeeb_schema,
-  poem: poem_schema,
+  adeeb_id: adeeb_schema,
+  poem_id: poem_schema,
 })
 
 

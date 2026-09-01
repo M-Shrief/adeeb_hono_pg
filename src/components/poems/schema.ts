@@ -12,12 +12,12 @@ import { minimal_schema as chosen_verses_schema } from "../../schemas/chosen_ver
 
 
 export const get_one_res = object({
-  _id: uuid_schema,
+  id: uuid_schema,
   intro: intro_schema,
   verses: verses_schema,
   is_couplet: is_couplet_schema,
   reviewed: reviewed_schema,
-  adeeb: adeeb_schema,
+  adeeb_id: adeeb_schema,
   chosen_verses: array(chosen_verses_schema)
 })
 

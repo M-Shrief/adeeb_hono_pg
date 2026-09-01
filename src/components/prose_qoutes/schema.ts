@@ -16,7 +16,7 @@ export const get_one_res = object({
   tags: tags_schema,
   reviewed: reviewed_schema,
 
-  adeeb: adeeb_schema,
+  adeeb_id: adeeb_schema,
 });
 
 

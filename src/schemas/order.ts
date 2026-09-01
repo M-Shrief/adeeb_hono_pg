@@ -27,8 +27,8 @@ export const status_schema = enum_schema(OrderStatusEnum);
 
 
 export const one_schema = object({
-  _id: uuid_schema,
-  user: optional(uuid_schema),
+  id: uuid_schema,
+  user_id: optional(uuid_schema),
   name: name_schema,
   phone: phone_schema,
   address: address_schema,

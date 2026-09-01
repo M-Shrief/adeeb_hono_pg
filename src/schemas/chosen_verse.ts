@@ -6,18 +6,18 @@ import { uuid_schema, tags_schema, reviewed_schema, verses_schema, is_couplet_sc
 
 
 export const one_schema = object({
-  _id: uuid_schema,
+  id: uuid_schema,
   tags: tags_schema,
   verses: verses_schema,
   is_couplet: is_couplet_schema,
   reviewed: reviewed_schema,
 
-  adeeb: uuid_schema,
-  poem: uuid_schema,
+  adeeb_id: uuid_schema,
+  poem_id: uuid_schema,
 })
 
 export const minimal_schema = object({
-  _id: uuid_schema,
+  id: uuid_schema,
   verses: verses_schema,
   is_couplet: is_couplet_schema,
 })
