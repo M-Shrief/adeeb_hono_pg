@@ -6,15 +6,17 @@ import { sql, getTableColumns, eq } from 'drizzle-orm';
 /////
 import { db } from "../../database/index.js"
 import { OrderStatusEnum, RoleEnum, order_table, prints_table } from "../../database/schemas.js"
-import { one_order_schema, create_order_req, create_order_res, create_many_orders_req, create_many_orders_res, create_print_res, create_print_req, update_order_req, update_print_req} from './schema.js'
+import { one_schema as order_schema } from "../../schemas/order.js";
+import { one_schema as print_schema} from "../../schemas/print.js";
+import { create_order_req, create_order_res, create_many_orders_req, create_many_orders_res, create_print_res, create_print_req, update_order_req, update_print_req} from './schema.js'
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
-///// Utils
 import { logger } from '../../utils/logger.js';
 import { auth_header_validator, id_param_validator, json_validator, param_validator, query_validator } from '../../utils/validators.js'
-import { HttpStatusCode, base_response_schema, queries_schema_for_get_all_req, get_described_route, get_all_schema, describe_jwt_security} from '../../utils/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
+import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { verify_token, create_permission, OP, check_permission, check_if_adminstrator, check_ownership} from "../../utils/auth.js"
 import { object } from 'valibot';
-import { uuid_schema } from '../../utils/schemas.js';
+import { uuid_schema } from '../../schemas/general.js';
 
 
 export const orders_route = new Hono() 
@@ -28,7 +30,7 @@ orders_route.get(
         summary: "Get All",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.OK, "Get All Orders", get_all_schema(one_order_schema)),
+           ...get_described_route(HttpStatusCode.OK, "Get All Orders", get_all_schema(order_schema)),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -101,7 +103,7 @@ orders_route.get(
         summary: "Current User Orders",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.OK, "Get All Orders", get_all_schema(one_order_schema)),
+           ...get_described_route(HttpStatusCode.OK, "Get All Orders", get_all_schema(order_schema)),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -182,7 +184,7 @@ orders_route.get(
         summary: "Get One",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.OK, "Get Order", one_order_schema),
+           ...get_described_route(HttpStatusCode.OK, "Get Order", order_schema),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "NOT FOUND", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
@@ -227,6 +229,7 @@ orders_route.get(
             if (!order) {
                 return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
             }
+            await cache_set(cache_key, order)
 
             let permissions = payload["permissions"] as string[]
             let is_authorized = check_if_adminstrator(permissions, OP.READ)
