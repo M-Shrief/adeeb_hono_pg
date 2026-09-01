@@ -6,11 +6,12 @@ import { sql, getTableColumns, eq } from 'drizzle-orm';
 /////
 import { db } from "../../database/index.js"
 import { prose_qoutes_table } from "../../database/schemas.js"
-import { one_schema, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
+import {one_schema} from "../../schemas/prose_qoute.js"
+import { get_one_res, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
-///// Utils
 import { auth_header_validator, id_param_validator, json_validator, query_validator } from '../../utils/validators.js'
-import { HttpStatusCode, base_response_schema, queries_schema_for_get_all_req, get_described_route, get_all_schema, describe_jwt_security } from '../../utils/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
+import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { logger } from '../../utils/logger.js';
 import { verify_adminstrator } from '../../utils/auth.js';
 
@@ -67,7 +68,7 @@ prose_qoute_route.get(
         tags: ["ProseQoutes"],
         summary: "Get One",
         responses: {
-           ...get_described_route(HttpStatusCode.OK, "Get ProseQoute", one_schema),
+           ...get_described_route(HttpStatusCode.OK, "Get ProseQoute", get_one_res),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "ProseQoute's not Found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -92,6 +93,14 @@ prose_qoute_route.get(
                     tags: true,
                     adeeb_id: true,
                     reviewed: true,
+                },
+                with: {
+                    adeeb: {
+                        columns: {
+                            id: true,
+                            name: true,
+                        }
+                    },
                 },
                 where: (prose_qoutes_table, { eq }) => eq(prose_qoutes_table.id, id),
             })
