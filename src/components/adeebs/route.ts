@@ -6,11 +6,12 @@ import { sql, getTableColumns, eq } from 'drizzle-orm';
 /////
 import { db } from "../../database/index.js"
 import { adeeb_table } from "../../database/schemas.js"
-import { one_schema, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
+import {one_schema} from "../../schemas/adeeb.js"
+import { get_one_res, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
-///// Utils
 import { auth_header_validator, id_param_validator, json_validator, query_validator } from '../../utils/validators.js'
-import { HttpStatusCode, base_response_schema, queries_schema_for_get_all_req, get_described_route, get_all_schema, describe_jwt_security } from '../../utils/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
+import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { logger } from '../../utils/logger.js';
 import { verify_adminstrator } from '../../utils/auth.js';
 
@@ -68,7 +69,7 @@ adeeb_route.get(
         tags: ["Adeebs"],
         summary: "Get One",
         responses: {
-           ...get_described_route(HttpStatusCode.OK, "Get Adeeb", one_schema),
+           ...get_described_route(HttpStatusCode.OK, "Get Adeeb", get_one_res),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "Adeeb's not Found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -85,7 +86,6 @@ adeeb_route.get(
                 return c.json(cache_res, HttpStatusCode.OK)
             }
 
-            let { created_at, updated_at, ...rest} = getTableColumns(adeeb_table) // select all columns, except created_at & updated_at.
             let adeeb = await db.query.adeeb_table.findFirst({
                 columns: {
                     id: true,
@@ -93,6 +93,27 @@ adeeb_route.get(
                     bio: true,
                     time_period: true,
                     reviewed: true,
+                },
+                with: {
+                    poems: {
+                        columns: {
+                            id: true,
+                            intro: true,
+                        }
+                    },
+                    chosen_verses: {
+                        columns: {
+                            id: true,
+                            verses: true,
+                            is_couplet: true,
+                        }
+                    },
+                    prose_qoutes: {
+                        columns: {
+                            id: true,
+                            qoute: true
+                        }
+                    },
                 },
                 where: (adeeb_table, { eq }) => eq(adeeb_table.id, id),
             })
