@@ -6,11 +6,12 @@ import { sql, getTableColumns, eq } from 'drizzle-orm';
 /////
 import { db } from "../../database/index.js"
 import { RoleEnum, user_table } from "../../database/schemas.js"
-import { one_schema, signup_req, login_req, user_authorized_res, update_current_req, update_one_req } from './schema.js'
-///// Utils
+import { one_schema } from "../../schemas/user.js"
+import { signup_req, login_req, user_authorized_res, update_current_req, update_one_req } from './schema.js'
 import { logger } from '../../utils/logger.js';
 import { auth_header_validator, id_param_validator, json_validator, query_validator } from '../../utils/validators.js'
-import { HttpStatusCode, base_response_schema, queries_schema_for_get_all_req, get_described_route, get_all_schema, describe_jwt_security } from '../../utils/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
+import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { compare_password, hash_password, sign_token, verify_token, create_permission, OP, check_permission, RoleEnumType, check_if_adminstrator } from "../../utils/auth.js"
 
 export const users_route = new Hono() 
