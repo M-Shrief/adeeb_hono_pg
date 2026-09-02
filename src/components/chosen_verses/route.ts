@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import {
   describeRoute,
 } from "hono-openapi";
-import { sql, getTableColumns, eq } from 'drizzle-orm';
+import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
 /////
 import { db } from "../../database/index.js"
 import { chosen_verses_table } from "../../database/schemas.js"
@@ -147,16 +147,25 @@ chosen_verses_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
+            let err_msg = null
             let new_chosen_verse = await db
                 .insert(chosen_verses_table)
                 .values(new_data)
                 // .onConflictDoNothing()
                 .returning()
                 .then(res => res[0])
-                .catch(() => undefined)
+                .catch((err: DrizzleQueryError) => {
+                    if ((err.cause as any).code === "23503") {
+                        err_msg = "Foriegn key error"
+                    }
+                    return undefined
+                })
 
             if (!new_chosen_verse) {
-                return c.json({ message: "Error inserting chosen_verse, try again later"}, HttpStatusCode.BAD_REQUEST) 
+                if(!err_msg) {
+                    err_msg = "Error inserting ChosenVerse, try again later"
+                }
+                return c.json({ message: err_msg}, HttpStatusCode.BAD_REQUEST) 
             }
             return c.json(new_chosen_verse, HttpStatusCode.CREATED)
         } catch(e) {
@@ -186,16 +195,25 @@ chosen_verses_route.post(
             let new_chosen_verses: any[] = []
             let invalid_items: InvalidItemType[] = []
             for(let [index, item] of new_data.entries()) {
+                let err_msg = null;
                 let new_chosen_verse = await db
                     .insert(chosen_verses_table)
                     .values(item)
                     // .onConflictDoNothing()
                     .returning()
                     .then(res => res[0])
-                    .catch(() => undefined)
+                    .catch((err: DrizzleQueryError) => {
+                        if ((err.cause as any).code === "23503") {
+                            err_msg = "Foriegn key error"
+                        }
+                        return undefined
+                    })
 
                 if(!new_chosen_verse) {
-                    invalid_items.push({item_index: index, message: "Error inserting chosen_verse, try again later"})
+                    if(!err_msg) {
+                        err_msg = "Error inserting ChosenVerse, try again later"
+                    }
+                    invalid_items.push({item_index: index, message: err_msg})
                     continue
                 }
                 new_chosen_verses.push(new_chosen_verse)
