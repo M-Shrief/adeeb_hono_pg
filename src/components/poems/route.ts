@@ -10,7 +10,7 @@ import { poem_table } from "../../database/schemas.js"
 import {one_schema} from "../../schemas/poem.js"
 import { get_one_res, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
 import { auth_header_validator, id_param_validator, json_validator, query_validator } from '../../utils/validators.js'
-import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, InvalidItemType} from '../../schemas/api.js';
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { logger } from '../../utils/logger.js';
 import { verify_adminstrator } from '../../utils/auth.js';
@@ -181,14 +181,24 @@ poem_route.post(
     json_validator(create_many_req, "Invalid data, can't be used to create many Poems"),
     async(c) => {
         try {
-            let new_data = await c.req.json()
-            let new_poems = await db
-                .insert(poem_table)
-                .values(new_data)
-                .onConflictDoNothing({ target: [poem_table.intro]})
-                .returning()
+            let new_data: any[] = await c.req.json()
+            let new_poems: any[] = []
+            let invalid_items: InvalidItemType[] = []
+            for(let [index, item] of new_data.entries()) {
+                let new_poem = await db
+                    .insert(poem_table)
+                    .values(item)
+                    .onConflictDoNothing({ target: [poem_table.intro]})
+                    .returning()
+                    .then(res => res[0])
+                if(!new_poem) {
+                    invalid_items.push({item_index: index, message: "Poem already exists"})
+                    continue
+                }
+                new_poems.push(new_poem)
 
-            return c.json({created_items: new_poems, success_count: new_poems.length, failed_count: new_data.length - new_poems.length}, HttpStatusCode.CREATED)
+            }
+            return c.json({created_items: new_poems, success_count: new_poems.length, invalid_items}, HttpStatusCode.CREATED)
         } catch(e) {
             logger.error({error:e}, "Error in POST /poems/many")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
