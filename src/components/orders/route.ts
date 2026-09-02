@@ -12,7 +12,7 @@ import { create_order_req, create_order_res, create_many_orders_req, create_many
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
 import { logger } from '../../utils/logger.js';
 import { auth_header_validator, id_param_validator, json_validator, param_validator, query_validator } from '../../utils/validators.js'
-import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, InvalidItemType} from '../../schemas/api.js';
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { verify_token, create_permission, OP, check_permission, check_if_adminstrator, check_ownership} from "../../utils/auth.js"
 import { object } from 'valibot';
@@ -329,12 +329,14 @@ orders_route.post(
             }
 
 
-            let data = await c.req.json()
+            let data: any[] = await c.req.json()
+            let new_orders: any[] = []
+            let invalid_items: InvalidItemType[] = []
+
             let delivery_schedule = new Date()
             delivery_schedule.setDate(delivery_schedule.getDate() + 7);
 
-            let new_orders: any[] = []
-            for (let order of data as any[]) {
+            for (let [index, order] of data.entries()) {
                 let new_order = await db
                     .insert(order_table)
                     .values({ 
@@ -347,9 +349,15 @@ orders_route.post(
                         status: OrderStatusEnum.IN_PROGRESS,
                         user_id: order.user_id
                     })
-                    // .onConflictDoNothing()
+                    .onConflictDoNothing()
                     .returning()
                     .then(res => res[0])
+                    .catch(() => undefined)
+
+                if(!new_order) {
+                    invalid_items.push({item_index: index, message: "Error inserting order, try again later"})
+                    continue
+                }
 
                 let prints_data = order.prints.map((item: any) => { return {...item, user_id: new_order.user_id, order_id: new_order.id}})
                 let new_prints = await db
@@ -364,9 +372,9 @@ orders_route.post(
 
             return c.json(
                 {
-                    created_items: new_orders,
-                    success_count: new_orders.length,
-                    failed_count: data.length - new_orders.length
+                    created_items: new_orders, 
+                    success_count: new_orders.length, 
+                    invalid_items
                 },
                 HttpStatusCode.CREATED
             )
