@@ -10,7 +10,7 @@ import {one_schema} from "../../schemas/prose_qoute.js"
 import { get_one_res, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
 import { auth_header_validator, id_param_validator, json_validator, query_validator } from '../../utils/validators.js'
-import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, InvalidItemType} from '../../schemas/api.js';
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { logger } from '../../utils/logger.js';
 import { verify_adminstrator } from '../../utils/auth.js';
@@ -146,9 +146,9 @@ prose_qoute_route.post(
             
             // if the first item in res[0] is undefined,
             // then there was a conflict and it already exists
-            if (!new_prose_qoute) {
-                return c.json({ message: "ProseQoute already exists"}, HttpStatusCode.NOT_ACCEPTABLE) 
-            }
+            // if (!new_prose_qoute) {
+            //     return c.json({ message: "ProseQoute already exists"}, HttpStatusCode.NOT_ACCEPTABLE) 
+            // }
             return c.json(new_prose_qoute, HttpStatusCode.CREATED)
         } catch(e) {
             logger.error({error:e}, "Error in POST /prose_qoutes")
@@ -173,14 +173,26 @@ prose_qoute_route.post(
     json_validator(create_many_req, "Invalid data, can't be used to create many ProseQoutes"),
     async (c) => {
         try {
-            let new_data = await c.req.json()
-            let new_prose_qoutes = await db
-                .insert(prose_qoutes_table)
-                .values(new_data)
-                // .onConflictDoNothing()
-                .returning()
+            let new_data: any[] = await c.req.json()
+            let new_prose_qoutes: any[] = []
+            let invalid_items: InvalidItemType[] = []
 
-            return c.json({created_items: new_prose_qoutes, success_count: new_prose_qoutes.length, failed_count: new_data.length - new_prose_qoutes.length}, HttpStatusCode.CREATED)
+            for(let [index, item] of new_data.entries()) {
+                let new_prose_qoute = await db
+                    .insert(prose_qoutes_table)
+                    .values(item)
+                    // .onConflictDoNothing()
+                    .returning()
+                    .then(res => res[0])
+                
+                if(!new_prose_qoute) {
+                    invalid_items.push({item_index: index, message: "Error inserting prose_qoute, try again later"})
+                    continue
+                }
+                new_prose_qoutes.push(new_prose_qoute)
+            }
+
+            return c.json({created_items: new_prose_qoutes, success_count: new_prose_qoutes.length, invalid_items}, HttpStatusCode.CREATED)
         } catch(e) {
             logger.error({error:e}, "Error in POST /prose_qoutes/many")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
