@@ -194,7 +194,8 @@ adeeb_route.post(
                     .onConflictDoNothing({ target: [adeeb_table.name]})
                     .returning()
                     .then(res => res[0])
-                
+                    .catch(() => undefined)
+
                 if(!new_adeeb) {
                     invalid_items.push({item_index: index, message: "Adeeb already exists"})
                     continue

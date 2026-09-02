@@ -184,6 +184,7 @@ prose_qoute_route.post(
                     // .onConflictDoNothing()
                     .returning()
                     .then(res => res[0])
+                    .catch(() => undefined)
                 
                 if(!new_prose_qoute) {
                     invalid_items.push({item_index: index, message: "Error inserting prose_qoute, try again later"})

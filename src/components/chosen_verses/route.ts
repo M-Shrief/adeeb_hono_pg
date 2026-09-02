@@ -193,7 +193,8 @@ chosen_verses_route.post(
                     // .onConflictDoNothing()
                     .returning()
                     .then(res => res[0])
-                
+                    .catch(() => undefined)
+
                 if(!new_chosen_verse) {
                     invalid_items.push({item_index: index, message: "Error inserting chosen_verse, try again later"})
                     continue

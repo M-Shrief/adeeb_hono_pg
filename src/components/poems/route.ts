@@ -191,6 +191,8 @@ poem_route.post(
                     .onConflictDoNothing({ target: [poem_table.intro]})
                     .returning()
                     .then(res => res[0])
+                    .catch(() => undefined)
+
                 if(!new_poem) {
                     invalid_items.push({item_index: index, message: "Poem already exists"})
                     continue
