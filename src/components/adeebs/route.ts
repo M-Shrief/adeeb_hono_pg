@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import {
   describeRoute,
 } from "hono-openapi";
-import { sql, getTableColumns, eq } from 'drizzle-orm';
+import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
 /////
 import { db } from "../../database/index.js"
 import { adeeb_table } from "../../database/schemas.js"
@@ -148,17 +148,27 @@ adeeb_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
+            let err_msg = null
             let new_adeeb = await db
                 .insert(adeeb_table)
                 .values(new_data)
                 .onConflictDoNothing({ target: [adeeb_table.name]})
                 .returning()
                 .then(res => res[0])
+                .catch((err: DrizzleQueryError) => {
+                    err_msg = "Error inserting Adeeb, try again later"
+                    return undefined
+                })
+
             
             // if the first item in res[0] is undefined,
             // then there was a conflict and it already exists
             if (!new_adeeb) {
-                return c.json({ message: "Adeeb already exists"}, HttpStatusCode.NOT_ACCEPTABLE) 
+                if(err_msg == null) {
+                    // if it doesn't have err_msg, then it had unique constraint violation
+                    err_msg = "Adeeb already exists"
+                } 
+                return c.json({ message: err_msg}, HttpStatusCode.CONFLICT) 
             }
             return c.json(new_adeeb, HttpStatusCode.CREATED)
         } catch(e) {
@@ -188,16 +198,26 @@ adeeb_route.post(
             let new_adeebs: any[] = []
             let invalid_items: InvalidItemType[] = []
             for(let [index, item] of new_data.entries()) {
+                let err_msg = null
                 let new_adeeb = await db
                     .insert(adeeb_table)
                     .values(item)
                     .onConflictDoNothing({ target: [adeeb_table.name]})
                     .returning()
                     .then(res => res[0])
-                    .catch(() => undefined)
+                    .catch((err: DrizzleQueryError) => {
+                        err_msg = "Error inserting Adeeb, try again later"
+                        return undefined
+                    })
+
 
                 if(!new_adeeb) {
-                    invalid_items.push({item_index: index, message: "Adeeb already exists"})
+                    if(err_msg == null) {
+                        // if it doesn't have err_msg, then it had unique constraint violation
+                        err_msg = "Adeeb already exists"
+                    } 
+
+                    invalid_items.push({item_index: index, message: err_msg})
                     continue
                 }
                 new_adeebs.push(new_adeeb)
