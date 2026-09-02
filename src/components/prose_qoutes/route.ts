@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import {
   describeRoute,
 } from "hono-openapi";
-import { sql, getTableColumns, eq } from 'drizzle-orm';
+import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
 /////
 import { db } from "../../database/index.js"
 import { prose_qoutes_table } from "../../database/schemas.js"
@@ -137,15 +137,25 @@ prose_qoute_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
+            let err_msg = null;
             let new_prose_qoute = await db
                 .insert(prose_qoutes_table)
                 .values(new_data)
                 // .onConflictDoNothing()
                 .returning()
                 .then(res => res[0])
-                .catch(() => undefined)
+                .catch((err: DrizzleQueryError) => {
+                    if ((err.cause as any).code === "23503") {
+                        err_msg = "Foriegn key error"
+                    }
+                    return undefined
+                })
+                
             if(!new_prose_qoute) {
-                return c.json({ message: "Error inserting prose_qoute, try again later"}, HttpStatusCode.BAD_REQUEST) 
+                if(!err_msg) {
+                    err_msg = "Error inserting ChosenVerse, try again later"
+                }
+                return c.json({ message: err_msg}, HttpStatusCode.BAD_REQUEST) 
             }
             return c.json(new_prose_qoute, HttpStatusCode.CREATED)
         } catch(e) {
@@ -176,16 +186,25 @@ prose_qoute_route.post(
             let invalid_items: InvalidItemType[] = []
 
             for(let [index, item] of new_data.entries()) {
+                let err_msg = null;
                 let new_prose_qoute = await db
                     .insert(prose_qoutes_table)
                     .values(item)
                     // .onConflictDoNothing()
                     .returning()
                     .then(res => res[0])
-                    .catch(() => undefined)
+                    .catch((err: DrizzleQueryError) => {
+                        if ((err.cause as any).code === "23503") {
+                            err_msg = "Foriegn key error"
+                        }
+                        return undefined
+                    })
                 
                 if(!new_prose_qoute) {
-                    invalid_items.push({item_index: index, message: "Error inserting prose_qoute, try again later"})
+                    if(!err_msg) {
+                        err_msg = "Error inserting ChosenVerse, try again later"
+                    }
+                    invalid_items.push({item_index: index, message: err_msg})
                     continue
                 }
                 new_prose_qoutes.push(new_prose_qoute)
