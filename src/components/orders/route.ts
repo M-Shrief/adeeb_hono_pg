@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import {
   describeRoute,
 } from "hono-openapi";
-import { sql, getTableColumns, eq } from 'drizzle-orm';
+import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
 /////
 import { db } from "../../database/index.js"
 import { OrderStatusEnum, RoleEnum, order_table, prints_table } from "../../database/schemas.js"
@@ -262,9 +262,9 @@ orders_route.post(
     async(c) => {
         try {
             let data = await c.req.json()
+            let err_msg = null
             let delivery_schedule = new Date()
             delivery_schedule.setDate(delivery_schedule.getDate() + 7);
-
             let new_order = await db
                 .insert(order_table)
                 .values({ 
@@ -280,6 +280,18 @@ orders_route.post(
                 // .onConflictDoNothing()
                 .returning()
                 .then(res => res[0])
+                .catch((err: DrizzleQueryError) => {
+                    if ((err.cause as any).code === "23503") {
+                        err_msg = "Foriegn key error"
+                    }
+                    return undefined
+                })
+            if (!new_order) {
+                if(!err_msg) {
+                    err_msg = "Error inserting Order, try again later"
+                }
+                return c.json({ message: err_msg}, HttpStatusCode.BAD_REQUEST) 
+            }
 
             let prints_data = data.prints.map((item: any) => { return {...item, user_id: new_order.user_id, order_id: new_order.id}})
             let new_prints = await db
@@ -337,6 +349,7 @@ orders_route.post(
             delivery_schedule.setDate(delivery_schedule.getDate() + 7);
 
             for (let [index, order] of data.entries()) {
+                let err_msg = null;
                 let new_order = await db
                     .insert(order_table)
                     .values({ 
@@ -352,9 +365,17 @@ orders_route.post(
                     .onConflictDoNothing()
                     .returning()
                     .then(res => res[0])
-                    .catch(() => undefined)
+                    .catch((err: DrizzleQueryError) => {
+                        if ((err.cause as any).code === "23503") {
+                            err_msg = "Foriegn key error"
+                        }
+                        return undefined
+                    })
 
                 if(!new_order) {
+                    if(!err_msg) {
+                        err_msg = "Error inserting Order, try again later"
+                    }   
                     invalid_items.push({item_index: index, message: "Error inserting order, try again later"})
                     continue
                 }
