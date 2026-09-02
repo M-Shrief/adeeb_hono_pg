@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import {
   describeRoute,
 } from "hono-openapi";
-import { sql, getTableColumns, eq } from 'drizzle-orm';
+import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
+import postgres from "postgres"
 /////
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
 import { db } from "../../database/index.js"
@@ -145,18 +146,30 @@ poem_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
+            let err_msg = null
             let new_poem = await db
                 .insert(poem_table)
                 .values(new_data)
                 .onConflictDoNothing({ target: [poem_table.intro]})
                 .returning()
                 .then(res => res[0])
-                .catch(() => undefined)
+                .catch((err: DrizzleQueryError) => {
+                    if ((err.cause as any).code === "23503") {
+                        err_msg = "Foriegn key error"
+                    } else {
+                        err_msg = "Error inserting Poem, try again later"
+                    }
+                    return undefined
+                })
             
             // if the first item in res[0] is undefined,
             // then there was a conflict or foriegn key error
             if (!new_poem) {
-                return c.json({ message: "Poem already exists"}, HttpStatusCode.NOT_ACCEPTABLE) 
+                if(err_msg == null) {
+                    // if it doesn't have err_msg, then it had unique constraint violation
+                    err_msg = "Poem already exists"
+                } 
+                return c.json({ message: err_msg}, HttpStatusCode.CONFLICT) 
             }
             return c.json(new_poem, HttpStatusCode.CREATED)
         } catch(e) {
@@ -186,16 +199,28 @@ poem_route.post(
             let new_poems: any[] = []
             let invalid_items: InvalidItemType[] = []
             for(let [index, item] of new_data.entries()) {
+                let err_msg = null
                 let new_poem = await db
                     .insert(poem_table)
                     .values(item)
                     .onConflictDoNothing({ target: [poem_table.intro]})
                     .returning()
                     .then(res => res[0])
-                    .catch(() => undefined)
+                    .catch((err: DrizzleQueryError) => {
+                        if ((err.cause as any).code === "23503") {
+                            err_msg = "Foriegn key error"
+                        } else {
+                            err_msg = "Error inserting Poem, try again later"
+                        }
+                        return undefined
+                    })
 
                 if(!new_poem) {
-                    invalid_items.push({item_index: index, message: "Poem already exists"})
+                    if(err_msg == null) {
+                        // if it doesn't have err_msg, then it had unique constraint violation
+                        err_msg = "Poem already exists"
+                    } 
+                    invalid_items.push({item_index: index, message: err_msg})
                     continue
                 }
                 new_poems.push(new_poem)
