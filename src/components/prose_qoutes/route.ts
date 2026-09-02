@@ -143,12 +143,10 @@ prose_qoute_route.post(
                 // .onConflictDoNothing()
                 .returning()
                 .then(res => res[0])
-            
-            // if the first item in res[0] is undefined,
-            // then there was a conflict and it already exists
-            // if (!new_prose_qoute) {
-            //     return c.json({ message: "ProseQoute already exists"}, HttpStatusCode.NOT_ACCEPTABLE) 
-            // }
+                .catch(() => undefined)
+            if(!new_prose_qoute) {
+                return c.json({ message: "Error inserting prose_qoute, try again later"}, HttpStatusCode.BAD_REQUEST) 
+            }
             return c.json(new_prose_qoute, HttpStatusCode.CREATED)
         } catch(e) {
             logger.error({error:e}, "Error in POST /prose_qoutes")

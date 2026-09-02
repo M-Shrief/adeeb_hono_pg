@@ -153,12 +153,11 @@ chosen_verses_route.post(
                 // .onConflictDoNothing()
                 .returning()
                 .then(res => res[0])
-            
-            // if the first item in res[0] is undefined,
-            // then there was a conflict and it already exists
-            // if (!new_chosen_verse) {
-            //     return c.json({ message: "ChosenVerse already exists"}, HttpStatusCode.NOT_ACCEPTABLE) 
-            // }
+                .catch(() => undefined)
+
+            if (!new_chosen_verse) {
+                return c.json({ message: "Error inserting chosen_verse, try again later"}, HttpStatusCode.BAD_REQUEST) 
+            }
             return c.json(new_chosen_verse, HttpStatusCode.CREATED)
         } catch(e) {
             logger.error({error:e}, "Error in POST /chosen_verses")
