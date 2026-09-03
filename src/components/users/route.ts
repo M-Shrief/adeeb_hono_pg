@@ -316,7 +316,10 @@ users_route.put(
             await db.update(user_table).set({username: new_data.username, password: hashed_pass, updated_at: sql`NOW()`}).where(eq(user_table.id, id))
 
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
-        } catch(e) {
+        } catch(e: any) {
+            if ((e.cause as any).code === "23505") {
+                return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+            }
             logger.error({error: e}, "Error in PUT /users/me")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
@@ -373,7 +376,10 @@ users_route.put(
             await db.update(user_table).set({username: new_data.username, password: hashed_pass, roles: roles, updated_at: sql`NOW()`}).where(eq(user_table.id, id))
 
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
-        } catch(e) {
+        } catch(e: any) {
+            if ((e.cause as any).code === "23505") {
+                return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+            }
             logger.error({error: e}, "Error in PUT /users/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
