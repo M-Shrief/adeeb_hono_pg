@@ -556,7 +556,10 @@ orders_route.put(
 
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
 
-        } catch(e) {
+        } catch(e: any) {
+            if ((e.cause as any).code === "23503") {
+                return c.json({message: "Foriegn key error"}, HttpStatusCode.BAD_REQUEST)
+            }
             logger.error({error:e}, "Error in PUT /orders/:id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -625,7 +628,10 @@ orders_route.put(
 
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
 
-        } catch(e) {
+        } catch(e: any) {
+            if ((e.cause as any).code === "23503") {
+                return c.json({message: "Foriegn key error"}, HttpStatusCode.BAD_REQUEST)
+            }
             logger.error({error:e}, "Error in PUT /orders/:order_id/prints/:print_id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
