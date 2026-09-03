@@ -299,7 +299,8 @@ orders_route.post(
                 .values([...prints_data])
                 .onConflictDoNothing()
                 .returning()
-
+            // No need to handle foreign key error for the order_id & user_id
+            // as we handled them before
 
             return c.json({...new_order, prints: new_prints}, HttpStatusCode.CREATED)
 
@@ -386,7 +387,8 @@ orders_route.post(
                     .values([...prints_data])
                     .onConflictDoNothing()
                     .returning()
-
+                // No need to handle foreign key error for the order_id & user_id
+                // as we handled them before
                 new_orders.push({...new_order, prints: new_prints})
             }
 
