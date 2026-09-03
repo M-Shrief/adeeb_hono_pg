@@ -261,7 +261,13 @@ poem_route.put(
             await cache_del(cache_key)
 
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
-        } catch(e) {
+        } catch(e: any) {
+            if ((e.cause as any).code === "23505") {
+                return c.json({message: "Already exists"}, HttpStatusCode.CONFLICT)
+            }
+            if ((e.cause as any).code === "23503") {
+                return c.json({message: "Foriegn key error"}, HttpStatusCode.BAD_REQUEST)
+            }
             logger.error({error: e}, "Error in PUT /poems/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
