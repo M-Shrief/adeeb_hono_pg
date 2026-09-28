@@ -33,7 +33,22 @@ const get_one_by_id = async(id: string) => {
 } 
 
 
+const create_one = async(new_data: any) => {
+    try {
+        let repo_result = await repository.create_one(new_data)
+        return repo_result
+    } catch(e) {
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in GET /adeebs/:id")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }
+} 
+
 export const service = {
     get_all,
-    get_one_by_id
+    get_one_by_id,
+    create_one
 }

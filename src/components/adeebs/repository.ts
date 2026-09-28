@@ -97,9 +97,44 @@ const get_one_by_id = async (id: string) => {
     }
 }
 
+const create_one = async(new_data: any) => {
+    try {
+        let err_msg = null
+        let new_adeeb = await db
+            .insert(adeeb_table)
+            .values(new_data)
+            .onConflictDoNothing({ target: [adeeb_table.name]})
+            .returning()
+            .then(res => res[0])
+            .catch((err: DrizzleQueryError) => {
+                err_msg = "Error inserting Adeeb, try again later"
+                return undefined
+            })
+
+        
+        // if the first item in res[0] is undefined,
+        // then there was a conflict and it already exists
+        if (!new_adeeb) {
+            if(err_msg == null) {
+                // if it doesn't have err_msg, then it had unique constraint violation
+                err_msg = "Adeeb already exists"
+            } 
+            // return c.json({ message: err_msg}, HttpStatusCode.CONFLICT) 
+            throw new APIError(HttpStatusCode.CONFLICT, "repository", err_msg)
+        }
+        return new_adeeb
+    } catch(e) {
+        if(e instanceof APIError) {
+            throw e
+        }
+        logger.error({error:e}, "Error in POST /adeebs")
+        throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+    }
+}
 
 
 export const repository = {
     get_all,
-    get_one_by_id
+    get_one_by_id,
+    create_one
 }

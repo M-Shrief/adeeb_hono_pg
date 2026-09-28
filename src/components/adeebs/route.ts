@@ -100,30 +100,17 @@ adeeb_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
-            let err_msg = null
-            let new_adeeb = await db
-                .insert(adeeb_table)
-                .values(new_data)
-                .onConflictDoNothing({ target: [adeeb_table.name]})
-                .returning()
-                .then(res => res[0])
-                .catch((err: DrizzleQueryError) => {
-                    err_msg = "Error inserting Adeeb, try again later"
-                    return undefined
-                })
-
-            
-            // if the first item in res[0] is undefined,
-            // then there was a conflict and it already exists
-            if (!new_adeeb) {
-                if(err_msg == null) {
-                    // if it doesn't have err_msg, then it had unique constraint violation
-                    err_msg = "Adeeb already exists"
-                } 
-                return c.json({ message: err_msg}, HttpStatusCode.CONFLICT) 
-            }
+            let new_adeeb = await service.create_one(new_data)
             return c.json(new_adeeb, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: e.message}, HttpStatusCode.NOT_FOUND)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /adeebs")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
