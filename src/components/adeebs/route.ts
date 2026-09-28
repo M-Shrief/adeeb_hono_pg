@@ -131,39 +131,20 @@ adeeb_route.post(
     auth_header_validator(),
     verify_adminstrator(),
     json_validator(create_many_req, "Invalid data, can't be used to create many Adeebs"),
-    async (c) => {
+        async(c) => {
         try {
-            let new_data: any[] = await c.req.json()
-            let new_adeebs: any[] = []
-            let invalid_items: InvalidItemType[] = []
-            for(let [index, item] of new_data.entries()) {
-                let err_msg = null
-                let new_adeeb = await db
-                    .insert(adeeb_table)
-                    .values(item)
-                    .onConflictDoNothing({ target: [adeeb_table.name]})
-                    .returning()
-                    .then(res => res[0])
-                    .catch((err: DrizzleQueryError) => {
-                        err_msg = "Error inserting Adeeb, try again later"
-                        return undefined
-                    })
-
-
-                if(!new_adeeb) {
-                    if(err_msg == null) {
-                        // if it doesn't have err_msg, then it had unique constraint violation
-                        err_msg = "Adeeb already exists"
-                    } 
-
-                    invalid_items.push({item_index: index, message: err_msg})
-                    continue
-                }
-                new_adeebs.push(new_adeeb)
-            }
-
-            return c.json({created_items: new_adeebs, success_count: new_adeebs.length, invalid_items}, HttpStatusCode.CREATED)
+            let new_data = await c.req.json()
+            let new_adeebs = await service.create_many(new_data)
+            return c.json(new_adeebs, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.BAD_REQUEST:
+                        return c.json({message: e.message}, HttpStatusCode.BAD_REQUEST)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /adeebs/many")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }

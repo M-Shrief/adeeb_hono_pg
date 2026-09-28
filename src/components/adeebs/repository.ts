@@ -11,6 +11,7 @@ import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/u
 import { adeeb } from './types.js';
 import { APIError } from '../..//utils/errors.js'
 import { HttpStatusCode } from '../../utils/api.js';
+import { InvalidItemType } from '../../schemas/api.js';
 
 const cache_prefix = "adeebs" 
 
@@ -132,9 +133,44 @@ const create_one = async(new_data: any) => {
     }
 }
 
+const create_many = async(new_data: any[]) => {
+    try {
+        let new_adeebs: any[] = []
+        let invalid_items: InvalidItemType[] = []
+        for(let [index, item] of new_data.entries()) {
+            let err_msg = null
+            let new_adeeb = await db
+                .insert(adeeb_table)
+                .values(item)
+                .onConflictDoNothing({ target: [adeeb_table.name]})
+                .returning()
+                .then(res => res[0])
+                .catch((err: DrizzleQueryError) => {
+                    err_msg = "Error inserting Adeeb, try again later"
+                    return undefined
+                })
+
+            if(!new_adeeb) {
+                if(err_msg == null) {
+                    // if it doesn't have err_msg, then it had unique constraint violation
+                    err_msg = "Adeeb already exists"
+                } 
+
+                invalid_items.push({item_index: index, message: err_msg})
+                continue
+            }
+            new_adeebs.push(new_adeeb)
+        }
+        return {created_items: new_adeebs, success_count: new_adeebs.length, invalid_items}
+    } catch(e) {
+        logger.error({error:e}, "Error in POST /adeebs")
+        throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+    }
+}
 
 export const repository = {
     get_all,
     get_one_by_id,
-    create_one
+    create_one,
+    create_many,
 }
