@@ -171,16 +171,16 @@ adeeb_route.put(
             let id = c.req.param("id")
             let data = await c.req.json()
             
-            await db.update(adeeb_table).set({...data, updated_at: sql`NOW()`}).where(eq(adeeb_table.id, id))
-
-            // Delete from cache after update to prevent showing old data
-            let cache_key = format_key_by_id(cache_prefix, id)
-            await cache_del(cache_key)
-
+            await service.update_one(id, data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
-            if ((e.cause as any).code === "23505") {
-                return c.json({message: "Already exists"}, HttpStatusCode.CONFLICT)
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Already Exists"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             logger.error({error: e}, "Error in PUT /adeebs/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)

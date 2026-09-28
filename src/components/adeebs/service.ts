@@ -61,9 +61,25 @@ const create_many = async(new_data: any[]) => {
     }
 } 
 
+const update_one = async(id: string, data: any) => {
+    try {
+        let repo_result = await repository.update_one(id, data)
+        return repo_result
+    } catch(e) {
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in GET /adeebs/:id")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }
+} 
+
+
 export const service = {
     get_all,
     get_one_by_id,
     create_one,
     create_many,
+    update_one,
 }

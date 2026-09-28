@@ -168,9 +168,29 @@ const create_many = async(new_data: any[]) => {
     }
 }
 
+const update_one = async(id: string, data: any) => {
+    try {        
+        await db.update(adeeb_table).set({...data, updated_at: sql`NOW()`}).where(eq(adeeb_table.id, id))
+
+        // Delete from cache after update to prevent showing old data
+        let cache_key = format_key_by_id(cache_prefix, id)
+        await cache_del(cache_key)
+
+        return null
+    } catch(e: any) {
+        if ((e.cause as any).code === "23505") {
+            throw new APIError(HttpStatusCode.CONFLICT, "repository")
+        }
+        logger.error({error: e}, "Error in PUT /adeebs/:id")
+        throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+    }
+}    
+
+
 export const repository = {
     get_all,
     get_one_by_id,
     create_one,
     create_many,
+    update_one,
 }
