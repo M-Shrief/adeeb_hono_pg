@@ -8,7 +8,32 @@ import { TimePeriodEnum } from '../../database/schemas.js';
 
 
 describe.concurrent("Testing Adeebs' service", async () => {
+    describe("Testing get_all()", async () => {
+        const id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
+        const adeeb = {
+        id: id,
+        name: 'عنترة بن شداد',
+        time_period: TimePeriodEnum.JAHLI,
+        bio: 'عنترة بن عمرو بن شداد بن معاوية بن قراد العبسي (525 م - 608 م) هو أحد أشهر شعراء العرب في فترة ما قبل الإسلام، اشتهر بشعر الفروسية، وله معلقة مشهورة. وهو أشهر فرسان العرب وأشعرهم وشاعر المعلقات والمعروف بشعره الجميل وغزله العفيف بعبلة.',
+        reviewed: true,
+        }
+        let get_data_result = {
+            data: [adeeb, adeeb],
+            limit: 2,
+            offset: 0,
+            total_count: 10
+        } 
+        test("Success Test: returns Adeeb's data by id", async() => {
+            vi.spyOn(repository, "get_all").mockResolvedValue(get_data_result)
+            await expect(service.get_all(2,0)).resolves.toEqual(get_data_result)
+        })
 
+        test("Fail Test: APIError=400", async() => {
+            const bad_req_err = new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+            vi.spyOn(repository, "get_all").mockThrow(new APIError(HttpStatusCode.BAD_REQUEST, "repository"))
+            await expect(service.get_all(2,0)).rejects.toThrow(bad_req_err)
+        })
+    })
     describe("Testing get_one_by_id()", async () => {
         const id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
         const adeeb = {
