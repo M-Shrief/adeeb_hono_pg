@@ -34,6 +34,9 @@ const get_all = async (limit: number, offset: number) => {
             total_count: total_count
         }
     } catch(e) {
+        if(e instanceof APIError) {
+            throw e
+        }
         logger.error({error:e}, "Error in GET /adeebs")
         throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
     }
