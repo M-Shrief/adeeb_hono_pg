@@ -102,7 +102,7 @@ describe.concurrent("Testing Adeebs' service", async () => {
             bio: 'عنترة بن عمرو بن شداد بن معاوية بن قراد العبسي (525 م - 608 م) هو أحد أشهر شعراء العرب في فترة ما قبل الإسلام، اشتهر بشعر الفروسية، وله معلقة مشهورة. وهو أشهر فرسان العرب وأشعرهم وشاعر المعلقات والمعروف بشعره الجميل وغزله العفيف بعبلة.',
             reviewed: true,
         }
-        test("Success Test: returns Adeeb's data by id", async() => {
+        test("Success Test: returns created Adeeb", async() => {
             vi.spyOn(repository, "create_one").mockResolvedValue({id, created_at, updated_at, ...adeeb})
             await expect(service.create_one(adeeb)).resolves.toEqual({id, created_at, updated_at, ...adeeb})
         })
@@ -116,6 +116,50 @@ describe.concurrent("Testing Adeebs' service", async () => {
             const bad_req_err = new APIError(HttpStatusCode.BAD_REQUEST, "repository")
             vi.spyOn(repository, "create_one").mockThrow(new APIError(HttpStatusCode.BAD_REQUEST, "repository"))
             await expect(service.create_one(adeeb)).rejects.toThrow(bad_req_err)
+        })
+    })
+    describe("Testing create_many()", async () => {
+        const id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
+        let date = new Date() 
+        let created_at = date
+        let updated_at = date
+        let name1 = '1عنترة بن شداد'
+        let name2 = '2عنترة بن شداد'
+        const adeeb1 = {
+            name: name1,
+            time_period: TimePeriodEnum.JAHLI,
+            bio: 'عنترة بن عمرو بن شداد بن معاوية بن قراد العبسي (525 م - 608 م) هو أحد أشهر شعراء العرب في فترة ما قبل الإسلام، اشتهر بشعر الفروسية، وله معلقة مشهورة. وهو أشهر فرسان العرب وأشعرهم وشاعر المعلقات والمعروف بشعره الجميل وغزله العفيف بعبلة.',
+            reviewed: true,
+        }
+        const adeeb2 = {
+            name: name1,
+            time_period: TimePeriodEnum.JAHLI,
+            bio: 'عنترة بن عمرو بن شداد بن معاوية بن قراد العبسي (525 م - 608 م) هو أحد أشهر شعراء العرب في فترة ما قبل الإسلام، اشتهر بشعر الفروسية، وله معلقة مشهورة. وهو أشهر فرسان العرب وأشعرهم وشاعر المعلقات والمعروف بشعره الجميل وغزله العفيف بعبلة.',
+            reviewed: true,
+        }
+        const success_inserts = [
+            {id, created_at, updated_at, ...adeeb1},
+            {id, created_at, updated_at, ...adeeb2},
+        ]
+        test("Success Test: returns created Adeebs, their count and invalid items", async() => {
+            vi.spyOn(repository, "create_many").mockResolvedValue(
+                {
+                    created_items: success_inserts, 
+                    success_count: 2, 
+                    invalid_items: [{item_index: 2, message: "Adeeb already exists"}]
+                }
+            )
+            await expect(service.create_many([adeeb1, adeeb2, adeeb1])).resolves.toEqual({
+                    created_items: success_inserts, 
+                    success_count: 2, 
+                    invalid_items: [{item_index: 2, message: "Adeeb already exists"}]
+                }
+            )
+        })
+        test("Fail Test: APIError=400", async() => {
+            const bad_req_err = new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+            vi.spyOn(repository, "create_many").mockThrow(new APIError(HttpStatusCode.BAD_REQUEST, "repository"))
+            await expect(service.create_many([adeeb1, adeeb2, adeeb1])).rejects.toThrow(bad_req_err)
         })
     })
 })
