@@ -4,7 +4,20 @@ import { APIError } from "../../utils/errors.js"
 import { logger } from "../../utils/logger.js"
 import { repository } from "./repository.js"
 
-// const get_all = async(limit: number, offset: number) => {} 
+const get_all = async(limit: number, offset: number) => {
+    try {
+        let repo_result = await repository.get_all(limit, offset)
+        return repo_result
+    } catch(e) {
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in GET /adeebs")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }    
+} 
+
 const get_one_by_id = async(id: string) => {
     try {
         let repo_result = await repository.get_one_by_id(id)
@@ -21,6 +34,6 @@ const get_one_by_id = async(id: string) => {
 
 
 export const service = {
-    // get_all
+    get_all,
     get_one_by_id
 }

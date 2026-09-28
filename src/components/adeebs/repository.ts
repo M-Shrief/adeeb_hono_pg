@@ -14,7 +14,31 @@ import { HttpStatusCode } from '../../utils/api.js';
 
 const cache_prefix = "adeebs" 
 
-// const get_all = async (limit: number, offset: number) => {}
+const get_all = async (limit: number, offset: number) => {
+    try {
+        // We make 2 seperate queries, to get the data & the total_count of rows.
+        // we can make 1 query, but we'll need to make manual transformation
+        // so that we remove the count field from every item in the array.
+        let { created_at, updated_at, ...rest} = getTableColumns(adeeb_table) // select all columns, except created_at & updated_at.
+        let [adeebs, counts] = await Promise.all([
+            await db.select({...rest}).from(adeeb_table).limit(limit).offset(offset),
+            await db.select({total_count: sql<number>`count(*) OVER()`.mapWith(Number)}).from(adeeb_table)
+        ])
+        
+        let total_count = counts[0] ? counts[0].total_count : 0 
+
+        return {
+            data: adeebs,
+            limit, 
+            offset, 
+            total_count: total_count
+        }
+    } catch(e) {
+        logger.error({error:e}, "Error in GET /adeebs")
+        throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+    }
+}
+
 const get_one_by_id = async (id: string) => {
     try {
         let cache_key = format_key_by_id(cache_prefix, id)
@@ -73,6 +97,6 @@ const get_one_by_id = async (id: string) => {
 
 
 export const repository = {
-    // get_all
+    get_all,
     get_one_by_id
 }

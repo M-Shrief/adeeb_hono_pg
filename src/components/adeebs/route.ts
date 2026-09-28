@@ -33,35 +33,20 @@ adeeb_route.get(
         },
     }),
     query_validator(queries_schema_for_get_all_req),
-    async(c) => {
+        async(c) => {
         try {
-            let limit = Number(c.req.query('limit')) || 100
-            let offset = Number(c.req.query('offset')) || 0
-            // We make 2 seperate queries, to get the data & the total_count of rows.
-            // we can make 1 query, but we'll need to make manual transformation
-            // so that we remove the count field from every item in the array.
-            let { created_at, updated_at, ...rest} = getTableColumns(adeeb_table) // select all columns, except created_at & updated_at.
-            let [adeebs, counts] = await Promise.all([
-                await db.select({...rest}).from(adeeb_table).limit(limit).offset(offset),
-                await db.select({total_count: sql<number>`count(*) OVER()`.mapWith(Number)}).from(adeeb_table)
-            ])
-            
-            let total_count = counts[0] ? counts[0].total_count : 0 
-
-            return c.json(
-                {
-                    data: adeebs,
-                    limit, 
-                    offset, 
-                    total_count: total_count
-                },
-                HttpStatusCode.OK
-            )
+            let limit = Number(c.req.query('limit'))
+            let offset = Number(c.req.query('offset'))
+            let adeebs = await service.get_all(limit, offset) 
+            return c.json(adeebs, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof APIError) {
+                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+            }
+            // if the error originated from the route/controller then log it:
             logger.error({error:e}, "Error in GET /adeebs")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
-
     }
 )
 
