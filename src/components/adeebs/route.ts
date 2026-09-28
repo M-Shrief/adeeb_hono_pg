@@ -14,6 +14,8 @@ import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, I
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { logger } from '../../utils/logger.js';
 import { verify_adminstrator } from '../../utils/auth.js';
+import {service} from "./service.js"
+import { APIError } from '../../utils/errors.js';
 
 export const adeeb_route = new Hono()  
 
@@ -78,52 +80,17 @@ adeeb_route.get(
     async(c) => {
         try {
             let id = c.req.param("id")
-
-            let cache_key = format_key_by_id(cache_prefix, id)
-            let cache_res = await cache_get(cache_key)
-
-            if(cache_res) {
-                return c.json(cache_res, HttpStatusCode.OK)
-            }
-
-            let adeeb = await db.query.adeeb_table.findFirst({
-                columns: {
-                    id: true,
-                    name: true,
-                    bio: true,
-                    time_period: true,
-                    reviewed: true,
-                },
-                with: {
-                    poems: {
-                        columns: {
-                            id: true,
-                            intro: true,
-                        }
-                    },
-                    chosen_verses: {
-                        columns: {
-                            id: true,
-                            verses: true,
-                            is_couplet: true,
-                        }
-                    },
-                    prose_qoutes: {
-                        columns: {
-                            id: true,
-                            qoute: true
-                        }
-                    },
-                },
-                where: (adeeb_table, { eq }) => eq(adeeb_table.id, id),
-            })
-            if (!adeeb) {
-                return c.json({message: "Adeeb's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-            await cache_set(cache_key, adeeb)
+            let adeeb = await service.get_one_by_id(id)
             return c.json(adeeb, HttpStatusCode.OK)
-
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.NOT_FOUND:
+                        return c.json({message: "Adeeb's not Found"}, HttpStatusCode.NOT_FOUND)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in GET /adeebs/:id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
