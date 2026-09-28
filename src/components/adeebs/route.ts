@@ -106,7 +106,7 @@ adeeb_route.post(
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
-                        return c.json({message: e.message}, HttpStatusCode.NOT_FOUND)
+                        return c.json({message: e.message}, HttpStatusCode.CONFLICT)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }

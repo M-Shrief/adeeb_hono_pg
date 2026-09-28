@@ -5,6 +5,7 @@ import { repository } from './repository.js';
 import { APIError } from '../../utils/errors.js';
 import { HttpStatusCode } from '../../utils/api.js';
 import { TimePeriodEnum } from '../../database/schemas.js';
+import { created_at } from '../../schemas/general.js';
 
 
 describe.concurrent("Testing Adeebs' service", async () => {
@@ -88,6 +89,33 @@ describe.concurrent("Testing Adeebs' service", async () => {
             const bad_req_err = new APIError(HttpStatusCode.BAD_REQUEST, "repository")
             vi.spyOn(repository, "get_one_by_id").mockThrow(new APIError(HttpStatusCode.BAD_REQUEST, "repository"))
             await expect(service.get_one_by_id(id)).rejects.toThrow(bad_req_err)
+        })
+    })
+    describe("Testing create_one()", async () => {
+        const id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
+        let date = new Date() 
+        let created_at = date
+        let updated_at = date
+        const adeeb = {
+            name: 'عنترة بن شداد',
+            time_period: TimePeriodEnum.JAHLI,
+            bio: 'عنترة بن عمرو بن شداد بن معاوية بن قراد العبسي (525 م - 608 م) هو أحد أشهر شعراء العرب في فترة ما قبل الإسلام، اشتهر بشعر الفروسية، وله معلقة مشهورة. وهو أشهر فرسان العرب وأشعرهم وشاعر المعلقات والمعروف بشعره الجميل وغزله العفيف بعبلة.',
+            reviewed: true,
+        }
+        test("Success Test: returns Adeeb's data by id", async() => {
+            vi.spyOn(repository, "create_one").mockResolvedValue({id, created_at, updated_at, ...adeeb})
+            await expect(service.create_one(adeeb)).resolves.toEqual({id, created_at, updated_at, ...adeeb})
+        })
+
+        test("Fail Test: APIError=409", async() => {
+            const conflict_err = new APIError(HttpStatusCode.CONFLICT, "repository")
+            vi.spyOn(repository, "create_one").mockThrow(new APIError(HttpStatusCode.CONFLICT, "repository"))
+            await expect(service.create_one(adeeb)).rejects.toThrow(conflict_err)
+        })
+        test("Fail Test: APIError=400", async() => {
+            const bad_req_err = new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+            vi.spyOn(repository, "create_one").mockThrow(new APIError(HttpStatusCode.BAD_REQUEST, "repository"))
+            await expect(service.create_one(adeeb)).rejects.toThrow(bad_req_err)
         })
     })
 })
