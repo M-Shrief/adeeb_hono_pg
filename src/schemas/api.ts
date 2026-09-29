@@ -11,10 +11,8 @@ export const base_response_schema = object({message: string()})
  * Queries' schema which is used to get all items for a route
  */
 export const queries_schema_for_get_all_req = object({
-  limit: optional(pipe(string(), toNumber("Must be a valid number"), minValue(0), maxValue(100)), "100"),
-  offset: optional(pipe(string(), toNumber("Must be a valid number"), minValue(0), maxValue(100)), "0"),
-  // limit: optional(pipe(number(), minValue(0), maxValue(100)), 100),
-  // offset: optional(pipe(number(), minValue(0)), 0)
+  limit: optional(pipe(pipe(string(), toNumber("Must be a valid number")), number(), minValue(0), maxValue(100)), "100"),
+  offset: optional(pipe(pipe(string(), toNumber("Must be a valid number")), number(), minValue(0), maxValue(100)), "0")
 })
 
 /**
