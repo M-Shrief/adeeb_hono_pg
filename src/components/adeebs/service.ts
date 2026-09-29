@@ -41,7 +41,7 @@ const create_one = async(new_data: any) => {
         if(e instanceof APIError) {
             throw e
         } else {
-            logger.error({error:e}, "Error in GET /adeebs/:id")
+            logger.error({error:e}, "Error in POST /adeebs")
             throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
         }
     }
@@ -55,7 +55,7 @@ const create_many = async(new_data: any[]) => {
         if(e instanceof APIError) {
             throw e
         } else {
-            logger.error({error:e}, "Error in GET /adeebs/:id")
+            logger.error({error:e}, "Error in POST /adeebs/many")
             throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
         }
     }
@@ -69,12 +69,25 @@ const update_one = async(id: string, data: any) => {
         if(e instanceof APIError) {
             throw e
         } else {
-            logger.error({error:e}, "Error in GET /adeebs/:id")
+            logger.error({error:e}, "Error in PUT /adeebs/:id")
             throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
         }
     }
-} 
+}
 
+const delete_one = async(id: string) => {
+    try {
+        let repo_result = await repository.delete_one(id)
+        return repo_result
+    } catch(e) {
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in DELETE /adeebs/:id")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }
+}
 
 export const service = {
     get_all,
@@ -82,4 +95,5 @@ export const service = {
     create_one,
     create_many,
     update_one,
+    delete_one,
 }

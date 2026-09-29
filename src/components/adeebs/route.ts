@@ -196,6 +196,7 @@ adeeb_route.delete(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Deleted Successfully"),
+           ...get_described_route(HttpStatusCode.CONFLICT, "Adeeb's is refrenced in other tables", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request, try again later.", base_response_schema),
         },
     }),
@@ -205,15 +206,17 @@ adeeb_route.delete(
     async (c) => {
         try {
             let id = c.req.param("id")
-            
-            await db.delete(adeeb_table).where(eq(adeeb_table.id, id))
-
-            // Delete from cache after delete to prevent showing old data
-            let cache_key = format_key_by_id(cache_prefix, id)
-            await cache_del(cache_key)
-
+            await service.delete_one(id)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Adeeb's is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error: e}, "Error Delete /adeebs/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }

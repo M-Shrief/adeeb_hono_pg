@@ -186,6 +186,24 @@ const update_one = async(id: string, data: any) => {
     }
 }    
 
+const delete_one = async(id: string) => {
+    try {        
+        await db.delete(adeeb_table).where(eq(adeeb_table.id, id))
+
+        // Delete from cache after delete to prevent showing old data
+        let cache_key = format_key_by_id(cache_prefix, id)
+        await cache_del(cache_key)
+
+        return null
+    } catch(e: any) {
+        if ((e.cause as any).code === "23503") {
+            throw new APIError(HttpStatusCode.CONFLICT, "repository")
+        }
+        logger.error({error: e}, "Error Delete /adeebs/:id")
+        throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+    }
+}    
+
 
 export const repository = {
     get_all,
@@ -193,4 +211,5 @@ export const repository = {
     create_one,
     create_many,
     update_one,
+    delete_one,
 }
