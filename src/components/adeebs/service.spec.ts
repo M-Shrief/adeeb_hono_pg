@@ -5,7 +5,6 @@ import { repository } from './repository.js';
 import { APIError } from '../../utils/errors.js';
 import { HttpStatusCode } from '../../utils/api.js';
 import { TimePeriodEnum } from '../../database/schemas.js';
-import { created_at } from '../../schemas/general.js';
 
 
 describe.concurrent("Testing Adeebs' service", async () => {
@@ -180,6 +179,24 @@ describe.concurrent("Testing Adeebs' service", async () => {
             const bad_req_err = new APIError(HttpStatusCode.BAD_REQUEST, "repository")
             vi.spyOn(repository, "update_one").mockThrow(new APIError(HttpStatusCode.BAD_REQUEST, "repository"))
             await expect(service.update_one(id, {name})).rejects.toThrow(bad_req_err)
+        })
+    })
+    describe("Testing delete_one()", async () => {
+        const id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6";
+        test("Success Test: updatse adeeb", async() => {
+            vi.spyOn(repository, "delete_one").mockResolvedValue(null)
+            await expect(service.delete_one(id)).resolves.toEqual(null)
+        })
+
+        test("Fail Test: APIError=409", async() => {
+            const conflict_err = new APIError(HttpStatusCode.CONFLICT, "repository")
+            vi.spyOn(repository, "delete_one").mockThrow(new APIError(HttpStatusCode.CONFLICT, "repository"))
+            await expect(service.delete_one(id)).rejects.toThrow(conflict_err)
+        })
+        test("Fail Test: APIError=400", async() => {
+            const bad_req_err = new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+            vi.spyOn(repository, "delete_one").mockThrow(new APIError(HttpStatusCode.BAD_REQUEST, "repository"))
+            await expect(service.delete_one(id)).rejects.toThrow(bad_req_err)
         })
     })
 })
