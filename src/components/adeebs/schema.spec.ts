@@ -2,7 +2,7 @@ import { describe, expect, it, vi, test, beforeAll } from 'vitest';
 ///////
 import { safeParse } from 'valibot';
 import { TimePeriodEnum } from '../../database/schemas.js';
-import {create_many_req, create_one_req, update_req} from './schema.js'
+import {create_many_req, create_one_req, get_one_res, update_req} from './schema.js'
 import { reviewed } from '../../database/columns.js';
 
 
@@ -31,7 +31,6 @@ describe.concurrent("Testing Adeebs' schema", async () => {
     let chosen_verses = [
         {
             id: '116d9b44-2a7b-4739-9014-d19a7677dd72',
-            tags: 'الفخر',
             verses: [
                 'فَكَأَنَّما برقعت وَجه نَهاري',
                 'لا ذَنبَ لي كَم رمت كتم فَضائِلي',
@@ -45,12 +44,52 @@ describe.concurrent("Testing Adeebs' schema", async () => {
             qoute: 'اشتريتُ الكتاب، وكان خسارةً، ولكن أين المفرُّ؟ فكلّ مُحِبٍّ للقراءة مثلي يُوقعه حبُّه مرارًا وتكرارًا في الخسارة بعد الخسارة، ثمّ لا يتوبُ! هكذا كُتُب زماننا..',
         },
     ]
+    describe("Testing get_one_res schema", async () => {
+        test("Testing success", async() => {
+            let one_response = {
+                id,
+                ...create_one_adeeb_req,
+                poems,
+                chosen_verses,
+                prose_qoutes
+            }
+            const res = safeParse(get_one_res, one_response);
+            expect(res.success).toEqual(true);
+            expect(res.output).toEqual(one_response);  
+        })
+        test("Testing faliure", async() => {
+            let one_response1 = {
+                id,
+                ...create_one_adeeb_req,
+                poems,
+                chosen_verses,
+            }
+            const res1 = safeParse(get_one_res, one_response1);
+            expect(res1.success).toEqual(false);
+            let one_response2 = {
+                id,
+                ...create_one_adeeb_req,
+                poems,
+                prose_qoutes
+            }
+            const res2 = safeParse(get_one_res, one_response2);
+            expect(res2.success).toEqual(false);
+            let one_response3= {
+                id,
+                ...create_one_adeeb_req,
+                chosen_verses,
+                prose_qoutes
+            }
+            const res3 = safeParse(get_one_res, one_response1);
+            expect(res3.success).toEqual(false);
+
+        })
+    })
     describe("Testing create_one_req schema", async () => {
         test("Testing success", async() => {
             const res = safeParse(create_one_req, create_one_adeeb_req);
             expect(res.success).toEqual(true);
             expect(res.output).toEqual(create_one_adeeb_req);  
-
         })
         test("Testing failure", async() => {
             const res1 = safeParse(create_one_req, {
@@ -138,7 +177,7 @@ describe.concurrent("Testing Adeebs' schema", async () => {
 
         })
     })
-     describe("Testing update_req schema", async () => {
+    describe("Testing update_req schema", async () => {
         test("Testing success", async() => {
             const res1 = safeParse(update_req, {
                 time_period: TimePeriodEnum.JAHLI,
