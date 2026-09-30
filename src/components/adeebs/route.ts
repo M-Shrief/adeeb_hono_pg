@@ -37,8 +37,8 @@ adeeb_route.get(
         try {
             let limit = Number(c.req.query('limit'))
             let offset = Number(c.req.query('offset'))
-            let adeebs = await service.get_all(limit, offset) 
-            return c.json(adeebs, HttpStatusCode.OK)
+            let resonse_body = await service.get_all(limit, offset) 
+            return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
                 return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
@@ -134,8 +134,8 @@ adeeb_route.post(
         async(c) => {
         try {
             let new_data = await c.req.json()
-            let new_adeebs = await service.create_many(new_data)
-            return c.json(new_adeebs, HttpStatusCode.CREATED)
+            let response_body = await service.create_many(new_data)
+            return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
