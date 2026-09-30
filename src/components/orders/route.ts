@@ -17,11 +17,11 @@ import { HttpStatusCode, get_described_route, describe_jwt_security } from '../.
 import { verify_token, create_permission, OP, check_permission, check_if_adminstrator, check_ownership} from "../../utils/auth.js"
 import { object } from 'valibot';
 import { uuid_schema } from '../../schemas/general.js';
+import { service } from './service.js';
+import { APIError } from '../../utils/errors.js';
 
 
 export const orders_route = new Hono() 
-
-const cache_prefix = "orders" 
 
 orders_route.get(
     "/orders",
@@ -56,40 +56,13 @@ orders_route.get(
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
 
-            let [orders, counts] = await Promise.all([
-                await db.query.order_table.findMany({
-                    columns: {
-                        created_at: false,
-                        updated_at: false,
-                    },
-                    with: {
-                        prints: {
-                            columns: {
-                                // already got them in order
-                                user_id: false, 
-                                order_id: false
-                            }
-                        }
-                    },
-                    limit: limit,
-                    offset: offset,
-                }),
-                await db.select({total_count: sql<number>`count(*) OVER()`.mapWith(Number)}).from(order_table)
-            ])
-            
-            let total_count = counts[0] ? counts[0].total_count : 0 
-
-            return c.json(
-                {
-                    data: orders,
-                    limit, 
-                    offset, 
-                    total_count: total_count
-                },
-                HttpStatusCode.OK
-            )        
-
+            let resonse_body = await service.get_all(limit, offset) 
+            return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof APIError) {
+                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+            }
+            // if the error originated from the route/controller then log it:
             logger.error({error:e}, "Error in GET /orders/:id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -135,41 +108,13 @@ orders_route.get(
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
 
-            let [orders, counts] = await Promise.all([
-                await db.query.order_table.findMany({
-                    columns: {
-                        created_at: false,
-                        updated_at: false,
-                    },
-                    with: {
-                        prints: {
-                            columns: {
-                                // already got them in order's data
-                                user_id: false, 
-                                order_id: false
-                            }
-                        }
-                    },
-                    limit: limit,
-                    offset: offset,
-                    where: (order_table, { eq }) => eq(order_table.user_id, user_id),
-                }),
-                await db.select({total_count: sql<number>`count(*) OVER()`.mapWith(Number)}).from(order_table).where(eq(order_table.user_id, user_id))
-            ])
-            
-            let total_count = counts[0] ? counts[0].total_count : 0 
-
-            return c.json(
-                {
-                    data: orders,
-                    limit, 
-                    offset, 
-                    total_count: total_count
-                },
-                HttpStatusCode.OK
-            )        
-
+            let resonse_body = await service.get_user_orders(user_id, limit, offset) 
+            return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof APIError) {
+                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+            }
+            // if the error originated from the route/controller then log it:
             logger.error({error:e}, "Error in GET /orders/me")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -201,46 +146,28 @@ orders_route.get(
             }            
 
             let id = c.req.param("id")
-            let cache_key = format_key_by_id(cache_prefix, id)
-            let cache_res = await cache_get(cache_key)
-            let order: any
-        
-            if(cache_res) {
-                order = cache_res
-            } else {
-                order = await db.query.order_table.findFirst({
-                        columns: {
-                            created_at: false,
-                            updated_at: false,
-                        },
-                        with: {
-                            prints: {
-                                columns: {
-                                    // already got them in order
-                                    user_id: false, 
-                                    order_id: false
-                                }
-                            }
-                        },
-                        where: (order_table, { eq }) => eq(order_table.id, id),
-                    })
-            }
-
-            if (!order) {
-                return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-            await cache_set(cache_key, order)
-
+            // check order for existence & it's auth data especially user_id
+            let checked_order = await service.check_order(id)
             let permissions = payload["permissions"] as string[]
             let is_authorized = check_if_adminstrator(permissions, OP.READ)
             if (!is_authorized) {
-                if (check_ownership(order.user_id, payload) == false) {
+                if (check_ownership(checked_order.user_id, payload) == false) {
                     return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
                 }
-            }            
-    
-            return c.json(order,HttpStatusCode.OK)        
+            }     
+            // return the all descriptive for the order after checking authorization,
+            // also it handle caches  
+            let order = await service.get_one_by_id(id)
+            return c.json(order, HttpStatusCode.OK)        
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.NOT_FOUND:
+                        return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in GET /orders/:id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -262,48 +189,17 @@ orders_route.post(
     async(c) => {
         try {
             let data = await c.req.json()
-            let err_msg = null
-            let delivery_schedule = new Date()
-            delivery_schedule.setDate(delivery_schedule.getDate() + 7);
-            let new_order = await db
-                .insert(order_table)
-                .values({ 
-                    name: data.name,
-                    phone: data.phone,
-                    address: data.address,
-                    reviewed: false,
-                    is_updateable: true,
-                    delivery_schedule: delivery_schedule,
-                    status: OrderStatusEnum.IN_PROGRESS,
-                    user_id: data.user_id
-                })
-                // .onConflictDoNothing()
-                .returning()
-                .then(res => res[0])
-                .catch((err: DrizzleQueryError) => {
-                    if ((err.cause as any).code === "23503") {
-                        err_msg = "Foriegn key error"
-                    }
-                    return undefined
-                })
-            if (!new_order) {
-                if(!err_msg) {
-                    err_msg = "Error inserting Order, try again later"
-                }
-                return c.json({ message: err_msg}, HttpStatusCode.BAD_REQUEST) 
-            }
-
-            let prints_data = data.prints.map((item: any) => { return {...item, user_id: new_order.user_id, order_id: new_order.id}})
-            let new_prints = await db
-                .insert(prints_table)
-                .values([...prints_data])
-                .onConflictDoNothing()
-                .returning()
-            // No need to handle foreign key error for the order_id & user_id
-            // as we handled them before
-            return c.json({...new_order, prints: new_prints}, HttpStatusCode.CREATED)
-
+            let new_order = await service.create_order(data)
+            return c.json(new_order, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: e.message}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /orders")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -340,66 +236,17 @@ orders_route.post(
 
 
             let data: any[] = await c.req.json()
-            let new_orders: any[] = []
-            let invalid_items: InvalidItemType[] = []
-
-            let delivery_schedule = new Date()
-            delivery_schedule.setDate(delivery_schedule.getDate() + 7);
-
-            for (let [index, order] of data.entries()) {
-                let err_msg = null;
-                let new_order = await db
-                    .insert(order_table)
-                    .values({ 
-                        name: order.name,
-                        phone: order.phone,
-                        address: order.address,
-                        reviewed: false,
-                        is_updateable: true,
-                        delivery_schedule: delivery_schedule,
-                        status: OrderStatusEnum.IN_PROGRESS,
-                        user_id: order.user_id
-                    })
-                    .onConflictDoNothing()
-                    .returning()
-                    .then(res => res[0])
-                    .catch((err: DrizzleQueryError) => {
-                        if ((err.cause as any).code === "23503") {
-                            err_msg = "Foriegn key error"
-                        }
-                        return undefined
-                    })
-
-                if(!new_order) {
-                    if(!err_msg) {
-                        err_msg = "Error inserting Order, try again later"
-                    }   
-                    invalid_items.push({item_index: index, message: err_msg})
-                    continue
-                }
-
-                let prints_data = order.prints.map((item: any) => { return {...item, user_id: new_order.user_id, order_id: new_order.id}})
-                let new_prints = await db
-                    .insert(prints_table)
-                    .values([...prints_data])
-                    .onConflictDoNothing()
-                    .returning()
-                // No need to handle foreign key error for the order_id & user_id
-                // as we handled them before
-                new_orders.push({...new_order, prints: new_prints})
-            }
-
-
-            return c.json(
-                {
-                    created_items: new_orders, 
-                    success_count: new_orders.length, 
-                    invalid_items
-                },
-                HttpStatusCode.CREATED
-            )
-
+            let response_body = await service.create_orders(data)
+            return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.BAD_REQUEST:
+                        return c.json({message: e.message}, HttpStatusCode.BAD_REQUEST)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /orders/many")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -431,21 +278,11 @@ orders_route.post(
             }
 
             let order_id = c.req.param("order_id")
-            let existing_order = await db.query.order_table.findFirst({
-                columns: {
-                    id: true,
-                    user_id: true,
-                    is_updateable: true,
-                },
-                where: (order_table, { eq }) => eq(order_table.id, order_id),
-            })
-
+            let existing_order = await service.check_order(order_id)
             if (!existing_order) {
                 return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
             }
 
-            let user: any = payload["user"]
-            let user_id: string = user["id"]
             let permissions = payload["permissions"] as string[]
             let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
             if (!is_adminstrator) {
@@ -460,16 +297,17 @@ orders_route.post(
 
 
             let data = await c.req.json()
-            let print_data = {...data, user_id: existing_order.user_id, order_id: order_id}
-            let new_print = await db
-                .insert(prints_table)
-                .values(print_data)
-                .onConflictDoNothing()
-                .returning()
-
+            let new_print = await service.create_print(order_id, existing_order.user_id, data)
             return c.json(new_print, HttpStatusCode.CREATED)
-
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: e.message}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /orders/:order_id/prints")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -500,15 +338,7 @@ orders_route.post(
             }
 
             let order_id = c.req.param("order_id")
-            let existing_order = await db.query.order_table.findFirst({
-                columns: {
-                    id: true,
-                    user_id: true,
-                    is_updateable: true,
-                },
-                where: (order_table, { eq }) => eq(order_table.id, order_id),
-            })
-
+            let existing_order = await service.check_order(order_id)
             if (!existing_order) {
                 return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
             }
@@ -526,46 +356,17 @@ orders_route.post(
             }
 
             let data: any[] = await c.req.json()
-            let new_prints: any[] = []
-            let invalid_items: InvalidItemType[] = []
-            for (let [index, print] of data.entries()) {
-                let err_msg = null;
-                let new_print = await db
-                    .insert(prints_table)
-                    .values({...print, user_id: existing_order.user_id, order_id: existing_order.id})
-                    .onConflictDoNothing()
-                    .returning()
-                    .then(res => res[0])
-                    .catch((err: DrizzleQueryError) => {
-                        if ((err.cause as any).code === "23503") {
-                            err_msg = "Foriegn key error"
-                        }
-                        return undefined
-                    })
-
-                // No need to handle foreign key error for the order_id & user_id
-                if(!new_print) {
-                    if(!err_msg) {
-                        err_msg = "Error inserting Print, try again later"
-                    }   
-                    invalid_items.push({item_index: index, message: err_msg})
-                    continue
-                }
-
-                // as we handled them before
-                new_prints.push(new_print)
-            }
-
-            return c.json(
-                {
-                    created_items: new_prints, 
-                    success_count: new_prints.length, 
-                    invalid_items
-                },
-                HttpStatusCode.CREATED
-            )
-
+            let response_body = await service.create_prints(order_id, existing_order.user_id, data)
+            return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.BAD_REQUEST:
+                        return c.json({message: e.message}, HttpStatusCode.BAD_REQUEST)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /orders/:order_id/prints/many")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -596,15 +397,7 @@ orders_route.put(
             }
 
             let id = c.req.param("id")
-            let existing_order = await db.query.order_table.findFirst({
-                columns: {
-                    id: true,
-                    user_id: true,
-                    is_updateable: true,
-                },
-                where: (order_table, { eq }) => eq(order_table.id, id),
-            })
-
+            let existing_order = await service.check_order(id)
             if (!existing_order) {
                 return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
             }
@@ -627,30 +420,17 @@ orders_route.put(
                 data.user_id = undefined
             }
 
-            // Ensuring data integrity
-
-            // If the order is aborted or marked as completed, then we make sure that is_updateable is False
-            if (data.status == OrderStatusEnum.COMPLETED || data.status == OrderStatusEnum.ABORTED) {
-                data.is_updateable = false
-            } else if (data.status == OrderStatusEnum.IN_PROGRESS) {
-                data.is_updateable = true
-            } else if (data.is_updateable) { 
-            // if it want to make is_updateable true, then we make sure status == "in progress".
-                data.status = OrderStatusEnum.IN_PROGRESS
-            }
-
-            await db.update(order_table).set({...data, updated_at: sql`NOW()`}).where(eq(order_table.id, id))
-
-            // Delete from cache after update to prevent showing old data
-            let cache_key = format_key_by_id(cache_prefix, id)
-            await cache_del(cache_key)
- 
-
+            await service.update_order(id, data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
 
         } catch(e: any) {
-            if ((e.cause as any).code === "23503") {
-                return c.json({message: "Foriegn key error"}, HttpStatusCode.BAD_REQUEST)
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Foriegn key error"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             logger.error({error:e}, "Error in PUT /orders/:id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
@@ -684,19 +464,10 @@ orders_route.put(
             }
 
             let order_id = c.req.param("order_id")
-            let existing_order = await db.query.order_table.findFirst({
-                columns: {
-                    id: true,
-                    user_id: true,
-                    is_updateable: true,
-                },
-                where: (order_table, { eq }) => eq(order_table.id, order_id),
-            })
-
+            let existing_order = await service.check_order(order_id)
             if (!existing_order) {
                 return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
             }
-            let data = await c.req.json()
 
             let permissions = payload["permissions"] as string[]
             let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
@@ -711,18 +482,19 @@ orders_route.put(
             }
 
 
+            let data = await c.req.json()
             let print_id = c.req.param("print_id")
-            await db.update(prints_table).set({...data, updated_at: sql`NOW()`}).where(eq(prints_table.id, print_id))
-
-            // Delete from cache after update to prevent showing old data
-            let cache_key = format_key_by_id(cache_prefix, order_id)
-            await cache_del(cache_key)
-
+            await service.update_print(order_id, print_id, data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
 
         } catch(e: any) {
-            if ((e.cause as any).code === "23503") {
-                return c.json({message: "Foriegn key error"}, HttpStatusCode.BAD_REQUEST)
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Foriegn key error"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             logger.error({error:e}, "Error in PUT /orders/:order_id/prints/:print_id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
@@ -753,16 +525,8 @@ orders_route.delete(
                 return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
             }
 
-            let order_id = c.req.param("id")
-            let existing_order = await db.query.order_table.findFirst({
-                columns: {
-                    id: true,
-                    user_id: true,
-                    is_updateable: true,
-                },
-                where: (order_table, { eq }) => eq(order_table.id, order_id),
-            })
-
+            let id = c.req.param("id")
+            let existing_order = await service.check_order(id)
             if (!existing_order) {
                 return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
             }
@@ -780,18 +544,18 @@ orders_route.delete(
                 }
             }
 
-            let id = c.req.param("id")
-            await db.delete(prints_table).where(eq(prints_table.order_id, id))
-            await db.delete(order_table).where(eq(order_table.id, id))
-
-            // Delete from cache after update to prevent showing old data
-            let cache_key = format_key_by_id(cache_prefix, id)
-            await cache_del(cache_key)
-
-
+            await service.delete_order(id)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
 
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Order is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in Delete /orders/:id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -822,15 +586,7 @@ orders_route.delete(
             }
 
             let order_id = c.req.param("order_id")
-            let existing_order = await db.query.order_table.findFirst({
-                columns: {
-                    id: true,
-                    user_id: true,
-                    is_updateable: true,
-                },
-                where: (order_table, { eq }) => eq(order_table.id, order_id),
-            })
-
+            let existing_order = await service.check_order(order_id)
             if (!existing_order) {
                 return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
             }
@@ -849,15 +605,18 @@ orders_route.delete(
 
 
             let print_id = c.req.param("print_id")
-            await db.delete(prints_table).where(eq(prints_table.id, print_id))
-
-            // Delete from cache after update to prevent showing old data
-            let cache_key = format_key_by_id(cache_prefix, order_id)
-            await cache_del(cache_key)
-
+            await service.delete_print(order_id, print_id)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
 
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Print is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in DELETE /orders/:order_id/prints/:print_id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
