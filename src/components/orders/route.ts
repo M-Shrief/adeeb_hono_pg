@@ -8,7 +8,7 @@ import { db } from "../../database/index.js"
 import { OrderStatusEnum, RoleEnum, order_table, prints_table } from "../../database/schemas.js"
 import { one_schema as order_schema } from "../../schemas/order.js";
 import { one_schema as print_schema} from "../../schemas/print.js";
-import { create_order_req, create_order_res, create_many_orders_req, create_many_orders_res, create_print_res, create_print_req, update_order_req, update_print_req} from './schema.js'
+import { create_order_req, create_order_res, create_many_orders_req, create_many_orders_res, create_print_res, create_print_req, update_order_req, update_print_req, create_many_prints_req, create_many_prints_res} from './schema.js'
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
 import { logger } from '../../utils/logger.js';
 import { auth_header_validator, id_param_validator, json_validator, param_validator, query_validator } from '../../utils/validators.js'
@@ -301,9 +301,7 @@ orders_route.post(
                 .returning()
             // No need to handle foreign key error for the order_id & user_id
             // as we handled them before
-
             return c.json({...new_order, prints: new_prints}, HttpStatusCode.CREATED)
-
 
         } catch(e) {
             logger.error({error:e}, "Error in POST /orders")
@@ -321,7 +319,6 @@ orders_route.post(
         responses: {
            ...get_described_route(HttpStatusCode.CREATED, "Successful added Orders", create_many_orders_res),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
-           ...get_described_route(HttpStatusCode.UNPROCESSABLE_ENTITY, "Invalid data for orders", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
@@ -377,7 +374,7 @@ orders_route.post(
                     if(!err_msg) {
                         err_msg = "Error inserting Order, try again later"
                     }   
-                    invalid_items.push({item_index: index, message: "Error inserting order, try again later"})
+                    invalid_items.push({item_index: index, message: err_msg})
                     continue
                 }
 
@@ -479,6 +476,101 @@ orders_route.post(
     }
 )
 
+orders_route.post(
+    "/orders/:order_id/prints/many",
+    describeRoute({
+        tags: ["Orders"],
+        summary: "Add Many Prints",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.CREATED, "Successful added Prints", create_many_prints_res),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    param_validator(object({ order_id: uuid_schema }), "Invalid Order's id"),
+    json_validator(create_many_prints_req, "Invalid data for Print"),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization")
+            let payload = await verify_token(auth_header!) // header was already validated
+            if (!payload) {
+                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
+            }
+
+            let order_id = c.req.param("order_id")
+            let existing_order = await db.query.order_table.findFirst({
+                columns: {
+                    id: true,
+                    user_id: true,
+                    is_updateable: true,
+                },
+                where: (order_table, { eq }) => eq(order_table.id, order_id),
+            })
+
+            if (!existing_order) {
+                return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
+            }
+
+            let permissions = payload["permissions"] as string[]
+            let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
+            if (!is_adminstrator) {
+                if (check_ownership(existing_order.user_id, payload) == false) {
+                    return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
+                }
+                // if it's owner, we need to check if he can update it or not
+                if (!existing_order.is_updateable) { 
+                    return c.json({ message: "Not Authorized to update order's data"}, HttpStatusCode.UNAUTHORIZED) 
+                }
+            }
+
+            let data: any[] = await c.req.json()
+            let new_prints: any[] = []
+            let invalid_items: InvalidItemType[] = []
+            for (let [index, print] of data.entries()) {
+                let err_msg = null;
+                let new_print = await db
+                    .insert(prints_table)
+                    .values({...print, user_id: existing_order.user_id, order_id: existing_order.id})
+                    .onConflictDoNothing()
+                    .returning()
+                    .then(res => res[0])
+                    .catch((err: DrizzleQueryError) => {
+                        if ((err.cause as any).code === "23503") {
+                            err_msg = "Foriegn key error"
+                        }
+                        return undefined
+                    })
+
+                // No need to handle foreign key error for the order_id & user_id
+                if(!new_print) {
+                    if(!err_msg) {
+                        err_msg = "Error inserting Print, try again later"
+                    }   
+                    invalid_items.push({item_index: index, message: err_msg})
+                    continue
+                }
+
+                // as we handled them before
+                new_prints.push(new_print)
+            }
+
+            return c.json(
+                {
+                    created_items: new_prints, 
+                    success_count: new_prints.length, 
+                    invalid_items
+                },
+                HttpStatusCode.CREATED
+            )
+
+        } catch(e) {
+            logger.error({error:e}, "Error in POST /orders/:order_id/prints/many")
+            return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+        }
+    }
+)
 orders_route.put(
     "/orders/:id",
     describeRoute({
