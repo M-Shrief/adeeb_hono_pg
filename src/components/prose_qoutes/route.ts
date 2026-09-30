@@ -14,6 +14,8 @@ import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, I
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { logger } from '../../utils/logger.js';
 import { verify_adminstrator } from '../../utils/auth.js';
+import { service } from './service.js';
+import { APIError } from '../../utils/errors.js';
 
 export const prose_qoute_route = new Hono()  
 
@@ -34,27 +36,12 @@ prose_qoute_route.get(
         try {
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
-            // We make 2 seperate queries, to get the data & the total_count of rows.
-            // we can make 1 query, but we'll need to make manual transformation
-            // so that we remove the count field from every item in the array.
-            let { created_at, updated_at, ...rest} = getTableColumns(prose_qoutes_table) // select all columns, except created_at & updated_at.
-            let [prose_qoutes, counts] = await Promise.all([
-                await db.select({...rest}).from(prose_qoutes_table).limit(limit).offset(offset),
-                await db.select({total_count: sql<number>`count(*) OVER()`.mapWith(Number)}).from(prose_qoutes_table)
-            ])
-            
-            let total_count = counts[0] ? counts[0].total_count : 0 
-
-            return c.json(
-                {
-                    data: prose_qoutes,
-                    limit, 
-                    offset, 
-                    total_count: total_count
-                },
-                HttpStatusCode.OK
-            )
+            let resonse_body = await service.get_all(limit, offset) 
+            return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof APIError) {
+                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+            }
             logger.error({error:e}, "Error in GET /prose_qoutes")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -78,41 +65,17 @@ prose_qoute_route.get(
         try {
             let id = c.req.param("id")
 
-            let cache_key = format_key_by_id(cache_prefix, id)
-            let cache_res = await cache_get(cache_key)
-
-            if(cache_res) {
-                return c.json(cache_res, HttpStatusCode.OK)
-            }
-
-            let prose_qoute = await db.query.prose_qoutes_table.findFirst({
-                columns: {
-                    id: true,
-                    qoute: true,
-                    source: true,
-                    tags: true,
-                    adeeb_id: true,
-                    reviewed: true,
-                },
-                with: {
-                    adeeb: {
-                        columns: {
-                            id: true,
-                            name: true,
-                        }
-                    },
-                },
-                where: (prose_qoutes_table, { eq }) => eq(prose_qoutes_table.id, id),
-            })
-            if (!prose_qoute) {
-                return c.json({message: "ProseQoute's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-
-            await cache_set(cache_key, prose_qoute)
-
+            let prose_qoute = await service.get_one_by_id(id)
             return c.json(prose_qoute, HttpStatusCode.OK)
-
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.NOT_FOUND:
+                        return c.json({message: "ProseQoute's not Found"}, HttpStatusCode.NOT_FOUND)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in GET /prose_qoutes/:id")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -137,28 +100,17 @@ prose_qoute_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
-            let err_msg = null;
-            let new_prose_qoute = await db
-                .insert(prose_qoutes_table)
-                .values(new_data)
-                // .onConflictDoNothing()
-                .returning()
-                .then(res => res[0])
-                .catch((err: DrizzleQueryError) => {
-                    if ((err.cause as any).code === "23503") {
-                        err_msg = "Foriegn key error"
-                    }
-                    return undefined
-                })
-                
-            if(!new_prose_qoute) {
-                if(!err_msg) {
-                    err_msg = "Error inserting ChosenVerse, try again later"
-                }
-                return c.json({ message: err_msg}, HttpStatusCode.BAD_REQUEST) 
-            }
+            let new_prose_qoute = await service.create_one(new_data)
             return c.json(new_prose_qoute, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: e.message}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /prose_qoutes")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -182,36 +134,17 @@ prose_qoute_route.post(
     async (c) => {
         try {
             let new_data: any[] = await c.req.json()
-            let new_prose_qoutes: any[] = []
-            let invalid_items: InvalidItemType[] = []
-
-            for(let [index, item] of new_data.entries()) {
-                let err_msg = null;
-                let new_prose_qoute = await db
-                    .insert(prose_qoutes_table)
-                    .values(item)
-                    // .onConflictDoNothing()
-                    .returning()
-                    .then(res => res[0])
-                    .catch((err: DrizzleQueryError) => {
-                        if ((err.cause as any).code === "23503") {
-                            err_msg = "Foriegn key error"
-                        }
-                        return undefined
-                    })
-                
-                if(!new_prose_qoute) {
-                    if(!err_msg) {
-                        err_msg = "Error inserting ChosenVerse, try again later"
-                    }
-                    invalid_items.push({item_index: index, message: err_msg})
-                    continue
-                }
-                new_prose_qoutes.push(new_prose_qoute)
-            }
-
-            return c.json({created_items: new_prose_qoutes, success_count: new_prose_qoutes.length, invalid_items}, HttpStatusCode.CREATED)
+            let response_body = await service.create_many(new_data)
+            return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.BAD_REQUEST:
+                        return c.json({message: e.message}, HttpStatusCode.BAD_REQUEST)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /prose_qoutes/many")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -238,16 +171,16 @@ prose_qoute_route.put(
             let id = c.req.param("id")
             let data = await c.req.json()
             
-            await db.update(prose_qoutes_table).set({...data, updated_at: sql`NOW()`}).where(eq(prose_qoutes_table.id, id))
-
-            // Delete from cache after update to prevent showing old data
-            let cache_key = format_key_by_id(cache_prefix, id)
-            await cache_del(cache_key)
-
+            await service.update_one(id, data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
-            if ((e.cause as any).code === "23503") {
-                return c.json({message: "Foriegn key error"}, HttpStatusCode.BAD_REQUEST)
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Foriegn key error"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             logger.error({error: e}, "Error in PUT /prose_qoutes/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
@@ -273,14 +206,17 @@ prose_qoute_route.delete(
         try {
             let id = c.req.param("id")
             
-            await db.delete(prose_qoutes_table).where(eq(prose_qoutes_table.id, id))
-
-            // Delete from cache after delete to prevent showing old data
-            let cache_key = format_key_by_id(cache_prefix, id)
-            await cache_del(cache_key)
-
+            await service.delete_one(id)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "ProseQoute is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error: e}, "Error in DELETE /prose_qoutes/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
