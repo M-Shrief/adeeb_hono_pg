@@ -2,7 +2,6 @@ import {
   optional,
   array,
   object,
-  number,
 } from 'valibot';
 /////////////
 import { uuid_schema, verses_schema, is_couplet_schema, reviewed_schema,  created_at, updated_at } from '../../schemas/general.js';

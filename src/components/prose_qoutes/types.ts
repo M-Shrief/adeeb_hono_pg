@@ -1,4 +1,4 @@
-export interface prose_qoute {
+export interface ProseQoute {
  reviewed: boolean;
  id: string;
  adeeb_id: string;

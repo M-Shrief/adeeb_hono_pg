@@ -2,13 +2,9 @@ import { Hono } from 'hono';
 import {
   describeRoute,
 } from "hono-openapi";
-import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
 /////
-import { db } from "../../database/index.js"
-import { adeeb_table } from "../../database/schemas.js"
 import {one_schema} from "../../schemas/adeeb.js"
 import { get_one_res, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
-import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
 import { auth_header_validator, id_param_validator, json_validator, query_validator } from '../../utils/validators.js'
 import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, InvalidItemType} from '../../schemas/api.js';
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';

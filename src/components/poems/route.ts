@@ -2,12 +2,6 @@ import { Hono } from 'hono';
 import {
   describeRoute,
 } from "hono-openapi";
-import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
-import postgres from "postgres"
-/////
-import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
-import { db } from "../../database/index.js"
-import { poem_table } from "../../database/schemas.js"
 import {one_schema} from "../../schemas/poem.js"
 import { get_one_res, create_many_req, create_many_res, create_one_req, create_one_res, update_req } from './schema.js'
 import { auth_header_validator, id_param_validator, json_validator, query_validator } from '../../utils/validators.js'

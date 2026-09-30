@@ -1,14 +1,10 @@
-import { Hono } from 'hono';
-import {
-  describeRoute,
-} from "hono-openapi";
 import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
 ////////////
 import { logger } from '../../utils/logger.js';
 import { db } from "../../database/index.js"
 import { adeeb_table } from "../../database/schemas.js"
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
-import { adeeb } from './types.js';
+import { Adeeb } from './types.js';
 import { APIError } from '../..//utils/errors.js'
 import { HttpStatusCode } from '../../utils/api.js';
 import { InvalidItemType } from '../../schemas/api.js';
@@ -49,7 +45,7 @@ const get_one_by_id = async (id: string) => {
         let cache_res = await cache_get(cache_key)
 
         if(cache_res) {
-            return cache_res as adeeb
+            return cache_res as Adeeb
         }
 
         let adeeb = await db.query.adeeb_table.findFirst({

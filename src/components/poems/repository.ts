@@ -1,7 +1,3 @@
-import { Hono } from 'hono';
-import {
-  describeRoute,
-} from "hono-openapi";
 import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
 ////////////
 import { logger } from '../../utils/logger.js';
@@ -11,7 +7,7 @@ import { poem_table } from "../../database/schemas.js"
 import { APIError } from '../..//utils/errors.js'
 import { HttpStatusCode } from '../../utils/api.js';
 import { InvalidItemType } from '../../schemas/api.js';
-import { poem } from './type.js';
+import { Poem } from './type.js';
 
 
 const cache_prefix = "poems" 
@@ -51,7 +47,7 @@ const get_one_by_id = async (id: string) => {
         let cache_res = await cache_get(cache_key)
 
         if(cache_res) {
-            return cache_res as poem
+            return cache_res as Poem
         }
 
         let { created_at, updated_at, ...rest} = getTableColumns(poem_table) // select all columns, except created_at & updated_at.

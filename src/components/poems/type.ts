@@ -1,4 +1,4 @@
-export interface poem {
+export interface Poem {
     id: string;
     intro: string;
     adeeb_id: string;

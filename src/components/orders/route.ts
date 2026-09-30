@@ -2,17 +2,14 @@ import { Hono } from 'hono';
 import {
   describeRoute,
 } from "hono-openapi";
-import { sql, getTableColumns, eq, DrizzleQueryError } from 'drizzle-orm';
 /////
-import { db } from "../../database/index.js"
-import { OrderStatusEnum, RoleEnum, order_table, prints_table } from "../../database/schemas.js"
+import { RoleEnum } from "../../database/schemas.js"
 import { one_schema as order_schema } from "../../schemas/order.js";
 import { one_schema as print_schema} from "../../schemas/print.js";
 import { create_order_req, create_order_res, create_many_orders_req, create_many_orders_res, create_print_res, create_print_req, update_order_req, update_print_req, create_many_prints_req, create_many_prints_res} from './schema.js'
-import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
 import { logger } from '../../utils/logger.js';
 import { auth_header_validator, id_param_validator, json_validator, param_validator, query_validator } from '../../utils/validators.js'
-import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, InvalidItemType} from '../../schemas/api.js';
+import { base_response_schema, queries_schema_for_get_all_req, get_all_schema } from '../../schemas/api.js';
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { verify_token, create_permission, OP, check_permission, check_if_adminstrator, check_ownership} from "../../utils/auth.js"
 import { object } from 'valibot';
@@ -180,7 +177,7 @@ orders_route.post(
         tags: ["Orders"],
         summary: "Create Order",
         responses: {
-           ...get_described_route(HttpStatusCode.CREATED, "Successful added Order", create_order_req),
+           ...get_described_route(HttpStatusCode.CREATED, "Successful added Order", create_order_res),
            ...get_described_route(HttpStatusCode.UNPROCESSABLE_ENTITY, "Invalid data for order", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },

@@ -1,4 +1,4 @@
-export interface adeeb {
+export interface Adeeb {
     id: string;
     name: string;
     bio: string;

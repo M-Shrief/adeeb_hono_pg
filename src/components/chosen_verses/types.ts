@@ -1,4 +1,4 @@
-export interface chosen_verse {
+export interface ChosenVerse {
     reviewed: boolean;
     id: string;
     adeeb_id: string;
