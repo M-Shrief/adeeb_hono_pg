@@ -463,7 +463,7 @@ orders_route.post(
 
 
             let data = await c.req.json()
-            let print_data = {...data, user_id: user_id, order_id: order_id}
+            let print_data = {...data, user_id: existing_order.user_id, order_id: order_id}
             let new_print = await db
                 .insert(prints_table)
                 .values(print_data)
