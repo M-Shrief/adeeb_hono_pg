@@ -209,7 +209,7 @@ poem_route.delete(
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
-                        return c.json({message: "Poem's is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                        return c.json({message: "Poem is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }

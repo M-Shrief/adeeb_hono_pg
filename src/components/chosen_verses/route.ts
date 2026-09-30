@@ -213,7 +213,7 @@ chosen_verses_route.delete(
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
-                        return c.json({message: "ChosenVerse's is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                        return c.json({message: "ChosenVerse is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }

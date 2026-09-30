@@ -19,8 +19,6 @@ import { APIError } from '../../utils/errors.js';
 
 export const adeeb_route = new Hono()  
 
-const cache_prefix = "adeebs" 
-
 
 adeeb_route.get(
     "/adeebs",
@@ -212,7 +210,7 @@ adeeb_route.delete(
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
-                        return c.json({message: "Adeeb's is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                        return c.json({message: "Adeeb is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
