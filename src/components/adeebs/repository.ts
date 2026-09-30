@@ -163,7 +163,7 @@ const create_many = async(new_data: any[]) => {
         }
         return {created_items: new_adeebs, success_count: new_adeebs.length, invalid_items}
     } catch(e) {
-        logger.error({error:e}, "Error in POST /adeebs")
+        logger.error({error:e}, "Error in POST /adeebs/many")
         throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
     }
 }
