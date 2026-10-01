@@ -37,27 +37,20 @@ users_route.get(
     auth_header_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_authorized = check_if_adminstrator(permissions, OP.READ)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
+            let auth_header = c.req.header("Authorization") as string // header was already validated
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
 
-            let resonse_body = await service.get_all(limit, offset) 
+            let resonse_body = await service.get_all(auth_header, limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
-                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             logger.error({error: e}, "Error in GET /users")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
@@ -81,31 +74,15 @@ users_route.get(
     auth_header_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let authorized_list = [
-                create_permission(RoleEnum.NORMAL, OP.READ),
-            ]
-            
-            let is_authorized = check_permission(authorized_list, permissions, OP.READ)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
-            let user = payload["user"] as any
-            let id = user.id
-
-            let existing_user = await service.get_one_by_id(id)
+            let auth_header = c.req.header("Authorization") as string // header was already validated
+            let existing_user = await service.get_one_by_id(null,auth_header)
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.NOT_FOUND:
                         return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
                     default:
@@ -135,25 +112,16 @@ users_route.get(
     id_param_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_authorized = check_if_adminstrator(permissions, OP.READ)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
+            let auth_header = c.req.header("Authorization") as string // header was already validated
             let id = c.req.param("id")
-            let existing_user = await service.get_one_by_id(id)
+            let existing_user = await service.get_one_by_id(id, auth_header)
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.NOT_FOUND:
                         return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
                     default:
@@ -181,9 +149,8 @@ users_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
-            let new_user = await service.signup(new_data)
-            let access_token = await sign_token(new_user.id, new_user.username, new_user.roles)
-            return c.json({user: {id: new_user.id, username: new_user.username, roles: new_user.roles}, access_token}, HttpStatusCode.CREATED)
+            let response_body = await service.signup(new_data)
+            return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
@@ -214,19 +181,13 @@ users_route.post(
     async(c) => {
         try {
             let login_data = await c.req.json()
-
-            let existing_user = await service.get_one_for_login(login_data.username)
-            
-            let pass_is_correct = await compare_password(login_data.password, existing_user.password)
-            if (!pass_is_correct) {
-                return c.json({ message: "Password isn't correct"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let access_token = await sign_token(existing_user.id, existing_user.username, existing_user.roles)
-            return c.json({user: {id: existing_user.id, username: existing_user.username, roles: existing_user.roles}, access_token}, HttpStatusCode.CREATED)
+            let response_body = await service.login(login_data)
+            return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Password isn't correct"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.NOT_FOUND:
                         return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
                     default:
@@ -256,32 +217,15 @@ users_route.put(
     json_validator(update_current_req, "Invalid data for updating User"),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let authorized_list = [
-                create_permission(RoleEnum.NORMAL, OP.WRITE),
-            ]
-            
-            let is_authorized = check_permission(authorized_list, permissions, OP.WRITE)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
-            let user = payload["user"] as any
-            let id = user.id
-
-            // set() ignores fields with undefined value, so we don't need conditions
+            let auth_header = c.req.header("Authorization") as string
             let new_data = await c.req.json()
-            await service.update_current_user(id, new_data)
+            await service.update_current_user(auth_header, new_data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
                     default:
@@ -313,25 +257,16 @@ users_route.put(
     json_validator(update_one_req, "Invalid data for updating User"),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_authorized = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
+            let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
             let new_data = await c.req.json()
-            await service.update_user_by_id(id, new_data)
+            await service.update_user_by_id(id, auth_header, new_data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e: any) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
                     default:
@@ -362,27 +297,20 @@ users_route.put(
     id_param_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_authorized = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
+            let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
-
-            await service.ban_user_by_id(id)
+            await service.ban_user_by_id(id, auth_header)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e) {
             if(e instanceof APIError) {
-                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
-            logger.error({error: e}, "Error in PUT /users/:id")
+            logger.error({error: e}, "Error in PUT /users/:id/ban")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
 
@@ -406,31 +334,15 @@ users_route.delete(
     auth_header_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let authorized_list = [
-                create_permission(RoleEnum.NORMAL, OP.WRITE),
-            ]
-            
-            let is_authorized = check_permission(authorized_list, permissions, OP.WRITE)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
-            let user = payload["user"] as any
-            let id = user.id
-
-            await service.delete_one(id)
+            let auth_header = c.req.header("Authorization") as string
+            await service.delete_one(null, auth_header)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
             
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "User is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
@@ -460,25 +372,15 @@ users_route.delete(
     id_param_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_authorized = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
+            let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
-
-            await service.delete_one(id)
+            await service.delete_one(id, auth_header)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "User is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
