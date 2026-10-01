@@ -13,6 +13,8 @@ import { auth_header_validator, id_param_validator, json_validator, query_valida
 import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} from '../../schemas/api.js';
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { compare_password, hash_password, sign_token, verify_token, create_permission, OP, check_permission, RoleEnumType, check_if_adminstrator } from "../../utils/auth.js"
+import { service } from './service.js';
+import { APIError } from '../../utils/errors.js';
 
 export const users_route = new Hono() 
 
@@ -51,25 +53,12 @@ users_route.get(
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
 
-            let { id, username, roles} = getTableColumns(user_table) // select all columns, except created_at & updated_at.
-            let [users, counts] = await Promise.all([
-                await db.select({ id, username, roles }).from(user_table).limit(limit).offset(offset),
-                await db.select({total_count: sql<number>`count(*) OVER()`.mapWith(Number)}).from(user_table)
-            ])
-            
-            let total_count = counts[0] ? counts[0].total_count : 0 
-
-            return c.json(
-                {
-                    data: users,
-                    limit, 
-                    offset, 
-                    total_count: total_count
-                },
-                HttpStatusCode.OK
-            )        
-
+            let resonse_body = await service.get_all(limit, offset) 
+            return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof APIError) {
+                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+            }
             logger.error({error: e}, "Error in GET /users")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
@@ -111,22 +100,18 @@ users_route.get(
             let user = payload["user"] as any
             let id = user.id
 
-            let existing_user = await db.query.user_table.findFirst({
-                columns: {
-                    id: true,
-                    username: true,
-                    roles: true,
-                },
-                where: (user_table, { eq }) => eq(user_table.id, id),
-            })
-
-            if (!existing_user) {
-                return c.json({message: "User's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-
+            let existing_user = await service.get_one_by_id(id)
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.NOT_FOUND:
+                        return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error: e}, "Error in GET /users/me")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
@@ -163,22 +148,18 @@ users_route.get(
             }
             
             let id = c.req.param("id")
-            let existing_user = await db.query.user_table.findFirst({
-                columns: {
-                    id: true,
-                    username: true,
-                    roles: true,
-                },
-                where: (user_table, { eq }) => eq(user_table.id, id),
-            })
-
-            if (!existing_user) {
-                return c.json({message: "User's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-
+            let existing_user = await service.get_one_by_id(id)
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.NOT_FOUND:
+                        return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error: e}, "Error in GET /users/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
@@ -200,26 +181,18 @@ users_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
-            let hashed_pass = await hash_password(new_data.password)
-
-            // Ensuring integrity, by removing duplocates and having Normal role as a must.
-            let roles = new Set<RoleEnumType>(new_data.roles as RoleEnumType[])
-            roles.add(RoleEnum.NORMAL)
-
-            let new_user = await db
-                .insert(user_table)
-                .values({username: new_data.username, password: hashed_pass, roles: [...roles]})
-                .onConflictDoNothing({ target: [user_table.username] })
-                .returning()
-                .then(res => res[0])
-            if (!new_user) {
-                return c.json({ message: "User already exists"}, HttpStatusCode.NOT_ACCEPTABLE) 
-            }
-
+            let new_user = await service.signup(new_data)
             let access_token = await sign_token(new_user.id, new_user.username, new_user.roles)
-
             return c.json({user: {id: new_user.id, username: new_user.username, roles: new_user.roles}, access_token}, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: e.message}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error in POST /users/signup")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -242,19 +215,7 @@ users_route.post(
         try {
             let login_data = await c.req.json()
 
-            let existing_user = await db.query.user_table.findFirst({
-                columns: {
-                    id: true,
-                    username: true,
-                    password: true,
-                    roles: true,
-                },
-                where: (user_table, { eq }) => eq(user_table.username, login_data.username),
-            })
-
-            if (!existing_user) {
-                return c.json({ message: "Username doesn't exist"}, HttpStatusCode.UNAUTHORIZED) 
-            }
+            let existing_user = await service.get_one_for_login(login_data.username)
             
             let pass_is_correct = await compare_password(login_data.password, existing_user.password)
             if (!pass_is_correct) {
@@ -262,9 +223,16 @@ users_route.post(
             }
 
             let access_token = await sign_token(existing_user.id, existing_user.username, existing_user.roles)
-
             return c.json({user: {id: existing_user.id, username: existing_user.username, roles: existing_user.roles}, access_token}, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.NOT_FOUND:
+                        return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error:e}, "Error is POST /users/signup")
             return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
         }
@@ -309,16 +277,16 @@ users_route.put(
 
             // set() ignores fields with undefined value, so we don't need conditions
             let new_data = await c.req.json()
-            let hashed_pass = undefined
-            if (new_data.password) {
-                hashed_pass = await hash_password(new_data.password)
-            }
-            await db.update(user_table).set({username: new_data.username, password: hashed_pass, updated_at: sql`NOW()`}).where(eq(user_table.id, id))
-
+            await service.update_current_user(id, new_data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
-            if ((e.cause as any).code === "23505") {
-                return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             logger.error({error: e}, "Error in PUT /users/me")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
@@ -358,27 +326,17 @@ users_route.put(
             }
             
             let id = c.req.param("id")
-
-
-            // set() ignores fields with undefined value, so we don't need conditions
             let new_data = await c.req.json()
-            let hashed_pass = undefined
-            if (new_data.password) {
-                hashed_pass = await hash_password(new_data.password)
-            }
-            let roles = undefined
-            if(new_data.roles) {
-                // Ensuring integrity, by removing duplocates and having Normal role as a must.
-                roles = new Set<RoleEnumType>(new_data.roles as RoleEnumType[])
-                roles.add(RoleEnum.NORMAL)
-                roles = [...roles]
-            }
-            await db.update(user_table).set({username: new_data.username, password: hashed_pass, roles: roles, updated_at: sql`NOW()`}).where(eq(user_table.id, id))
-
+            await service.update_user_by_id(id, new_data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e: any) {
-            if ((e.cause as any).code === "23505") {
-                return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             logger.error({error: e}, "Error in PUT /users/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
@@ -418,11 +376,12 @@ users_route.put(
             
             let id = c.req.param("id")
 
-            const query = sql`UPDATE users set roles =  (select array_agg(distinct e) from unnest(array_append(users.roles, 'Banned'::roles_enum)) e) WHERE id = ${id}`;
-            await db.execute(query);
-
+            await service.ban_user_by_id(id)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e) {
+            if(e instanceof APIError) {
+                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+            }
             logger.error({error: e}, "Error in PUT /users/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
@@ -466,11 +425,18 @@ users_route.delete(
             let user = payload["user"] as any
             let id = user.id
 
-            await db.delete(user_table).where(eq(user_table.id, id))
-
+            await service.delete_one(id)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
             
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "User is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error: e}, "Error in DELETE /users/me")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
@@ -508,10 +474,17 @@ users_route.delete(
             
             let id = c.req.param("id")
 
-            await db.delete(user_table).where(eq(user_table.id, id))
-
+            await service.delete_one(id)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e) {
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "User is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
             logger.error({error: e}, "Error in DELETE /users/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
