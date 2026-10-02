@@ -36,28 +36,19 @@ orders_route.get(
     auth_header_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-        
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-
-            let is_authorized = check_if_adminstrator(permissions, OP.READ)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-            
+            let auth_header = c.req.header("Authorization") as string        
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
-
-            let resonse_body = await service.get_all(limit, offset) 
+            let resonse_body = await service.get_all(auth_header, limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
-                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             // if the error originated from the route/controller then log it:
             logger.error({error:e}, "Error in GET /orders/:id")
@@ -82,34 +73,19 @@ orders_route.get(
     auth_header_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let authorized_list = [
-                create_permission(RoleEnum.NORMAL, OP.READ)
-            ]
-            
-            let is_authorized = check_permission(authorized_list, permissions, OP.READ)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let user: any = payload["user"]
-            let user_id: string = user["id"]
-            
+            let auth_header = c.req.header("Authorization") as string
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
-
-            let resonse_body = await service.get_user_orders(user_id, limit, offset) 
+            let resonse_body = await service.get_user_orders(auth_header, limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
-                return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
             }
             // if the error originated from the route/controller then log it:
             logger.error({error:e}, "Error in GET /orders/me")
@@ -135,32 +111,17 @@ orders_route.get(
     auth_header_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-        
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }            
-
+            let auth_header = c.req.header("Authorization") as string // header was already validated
             let id = c.req.param("id")
-            // check order for existence & it's auth data especially user_id
-            let checked_order = await service.check_order(id)
-            let permissions = payload["permissions"] as string[]
-            let is_authorized = check_if_adminstrator(permissions, OP.READ)
-            if (!is_authorized) {
-                if (check_ownership(checked_order.user_id, payload) == false) {
-                    return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-            }     
-            // return the all descriptive for the order after checking authorization,
-            // also it handle caches  
-            let order = await service.get_one_by_id(id)
-            return c.json(order, HttpStatusCode.OK)        
+            let existing_user = await service.get_one_by_id(id, auth_header)
+            return c.json(existing_user, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.NOT_FOUND:
-                        return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
+                        return c.json({message: "Order is not Found"}, HttpStatusCode.NOT_FOUND)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -219,25 +180,15 @@ orders_route.post(
     json_validator(create_many_orders_req, "Invalid data for Order"),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_authorized = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_authorized) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-
+            let auth_header = c.req.header("Authorization") as string
             let data: any[] = await c.req.json()
-            let response_body = await service.create_orders(data)
+            let response_body = await service.create_orders(auth_header, data)
             return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.BAD_REQUEST:
                         return c.json({message: e.message}, HttpStatusCode.BAD_REQUEST)
                     default:
@@ -268,37 +219,16 @@ orders_route.post(
     json_validator(create_print_req, "Invalid data for Print"),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
+            let auth_header = c.req.header("Authorization") as string
             let order_id = c.req.param("order_id")
-            let existing_order = await service.check_order(order_id)
-            if (!existing_order) {
-                return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_adminstrator) {
-                if (check_ownership(existing_order.user_id, payload) == false) {
-                    return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-                // if it's owner, we need to check if he can update it or not
-                if (!existing_order.is_updateable) { 
-                    return c.json({ message: "Not Authorized to update order's data"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-            }
-
-
             let data = await c.req.json()
-            let new_print = await service.create_print(order_id, existing_order.user_id, data)
-            return c.json(new_print, HttpStatusCode.CREATED)
+            let response_body = await service.create_print(order_id, auth_header, data)
+            return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: e.message}, HttpStatusCode.CONFLICT)
                     default:
@@ -328,36 +258,16 @@ orders_route.post(
     json_validator(create_many_prints_req, "Invalid data for Print"),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
+            let auth_header = c.req.header("Authorization") as string
             let order_id = c.req.param("order_id")
-            let existing_order = await service.check_order(order_id)
-            if (!existing_order) {
-                return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_adminstrator) {
-                if (check_ownership(existing_order.user_id, payload) == false) {
-                    return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-                // if it's owner, we need to check if he can update it or not
-                if (!existing_order.is_updateable) { 
-                    return c.json({ message: "Not Authorized to update order's data"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-            }
-
-            let data: any[] = await c.req.json()
-            let response_body = await service.create_prints(order_id, existing_order.user_id, data)
+            let data = await c.req.json()
+            let response_body = await service.create_prints(order_id, auth_header, data)
             return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.BAD_REQUEST:
                         return c.json({message: e.message}, HttpStatusCode.BAD_REQUEST)
                     default:
@@ -387,42 +297,16 @@ orders_route.put(
     json_validator(update_order_req, "Invalid data for Order"),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
+            let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
-            let existing_order = await service.check_order(id)
-            if (!existing_order) {
-                return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
             let data = await c.req.json()
-
-            let permissions = payload["permissions"] as string[]
-            let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_adminstrator) {
-                if (check_ownership(existing_order.user_id, payload) == false) {
-                    return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-                // if it's owner, we need to check if he can update it or not
-                if (!existing_order.is_updateable) {
-                    return c.json({ message: "Not Authorized to update order's data"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-                // if it's updated by the owner, then remove admin's related fields -- aka assign them to undefine.
-                data.is_updateable = undefined
-                data.status = undefined
-                data.reviewed = undefined
-                data.user_id = undefined
-            }
-
-            await service.update_order(id, data)
+            await service.update_order(id, auth_header, data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
-
         } catch(e: any) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Foriegn key error"}, HttpStatusCode.CONFLICT)
                     default:
@@ -454,39 +338,17 @@ orders_route.put(
     json_validator(update_print_req, "Invalid data for Print"),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
-            let order_id = c.req.param("order_id")
-            let existing_order = await service.check_order(order_id)
-            if (!existing_order) {
-                return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_adminstrator) {
-                if (check_ownership(existing_order.user_id, payload) == false) {
-                    return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-                // if it's owner, we need to check if he can update it or not
-                if (!existing_order.is_updateable) {
-                    return c.json({ message: "Not Authorized to update print's data"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-            }
-
-
+            let auth_header = c.req.header("Authorization") as string
             let data = await c.req.json()
+            let order_id = c.req.param("order_id")
             let print_id = c.req.param("print_id")
-            await service.update_print(order_id, print_id, data)
+            await service.update_print(order_id, print_id, auth_header, data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
-
         } catch(e: any) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Foriegn key error"}, HttpStatusCode.CONFLICT)
                     default:
@@ -516,37 +378,15 @@ orders_route.delete(
     id_param_validator(),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
+            let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
-            let existing_order = await service.check_order(id)
-            if (!existing_order) {
-                return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-
-
-            let permissions = payload["permissions"] as string[]
-            let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_adminstrator) {
-                if (check_ownership(existing_order.user_id, payload) == false) {
-                    return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-                // if it's owner, we need to check if he can delete it or not
-                if (!existing_order.is_updateable) {
-                    return c.json({ message: "Not Authorized to delete print"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-            }
-
-            await service.delete_order(id)
+            await service.delete_order(id, auth_header)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
-
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Order is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
@@ -576,38 +416,16 @@ orders_route.delete(
     param_validator(object({ print_id: uuid_schema }), "Invalid Print's id"),
     async(c) => {
         try {
-            let auth_header = c.req.header("Authorization")
-            let payload = await verify_token(auth_header!) // header was already validated
-            if (!payload) {
-                return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-            }
-
+            let auth_header = c.req.header("Authorization") as string
             let order_id = c.req.param("order_id")
-            let existing_order = await service.check_order(order_id)
-            if (!existing_order) {
-                return c.json({message: "Order's not Found"}, HttpStatusCode.NOT_FOUND)
-            }
-
-            let permissions = payload["permissions"] as string[]
-            let is_adminstrator = check_if_adminstrator(permissions, OP.WRITE)
-            if (!is_adminstrator) {
-                if (check_ownership(existing_order.user_id, payload) == false) {
-                    return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-                // if it's owner, we need to check if he can delete it or not
-                if (!existing_order.is_updateable) {
-                    return c.json({ message: "Not Authorized to delete print"}, HttpStatusCode.UNAUTHORIZED) 
-                }
-            }
-
-
             let print_id = c.req.param("print_id")
-            await service.delete_print(order_id, print_id)
+            await service.delete_print(order_id, print_id, auth_header)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
-
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
+                    case HttpStatusCode.UNAUTHORIZED:
+                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Print is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
