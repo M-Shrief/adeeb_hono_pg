@@ -15,8 +15,6 @@ import { APIError } from '../../utils/errors.js';
 
 export const prose_qoute_route = new Hono()  
 
-const cache_prefix = "prose_qoutes" 
-
 prose_qoute_route.get(
     "/prose_qoutes",
     describeRoute({

@@ -77,7 +77,7 @@ export const create_order_req = object({
   name: name_schema,
   phone: phone_schema,
   address: address_schema,
-  prints: pipe(array(create_print_res), minLength(1))
+  prints: pipe(array(create_print_req), minLength(1))
 })
 
 export const create_order_res = object({
@@ -105,5 +105,4 @@ export const update_order_req = object({
   is_updateable: optional(is_updateable),
   status: optional(status_schema),
   reviewed: optional(reviewed_schema),
-  prints: pipe(array(create_print_res), minLength(1))
 })
