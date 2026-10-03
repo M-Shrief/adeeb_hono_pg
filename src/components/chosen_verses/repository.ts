@@ -48,19 +48,18 @@ const get_one_by_id = async (id: string) => {
             return cache_res as ChosenVerse
         }
 
-        let { created_at, updated_at, ...rest} = getTableColumns(chosen_verses_table) // select all columns, except created_at & updated_at.
         let chosen_verse = await db.query.chosen_verses_table.findFirst({
             columns: {
                 id: true,
-                chosen_verse_id: true,
-                poem_id: true,
                 tags: true,
                 verses: true,
                 is_couplet: true,
                 reviewed: true,
+                adeeb_id: true,
+                poem_id: true,
             },
             with: {
-                chosen_verse: {
+                adeeb: {
                     columns: {
                         id: true,
                         name: true,

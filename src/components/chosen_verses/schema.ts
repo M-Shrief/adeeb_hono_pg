@@ -17,9 +17,10 @@ export const get_one_res = object({
   verses: verses_schema,
   is_couplet: is_couplet_schema,
   reviewed: reviewed_schema,
-
-  adeeb_id: adeeb_schema,
-  poem_id: poem_schema,
+  adeeb_id: uuid_schema,
+  poem_id: uuid_schema,
+  adeeb: adeeb_schema,
+  poem: poem_schema,
 })
 
 
