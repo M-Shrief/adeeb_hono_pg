@@ -23,7 +23,7 @@ describe.concurrent("Testing Adeebs' service", async () => {
             offset: 0,
             total_count: 10
         } 
-        test("Success Test: returns Adeeb's data by id", async() => {
+        test("Success Test", async() => {
             vi.spyOn(repository, "get_all").mockResolvedValue(get_data_result)
             await expect(service.get_all(2,0)).resolves.toEqual(get_data_result)
         })
@@ -74,7 +74,7 @@ describe.concurrent("Testing Adeebs' service", async () => {
             },
         ],
         }
-        test("Success Test: returns Adeeb's data by id", async() => {
+        test("Success Test", async() => {
             vi.spyOn(repository, "get_one_by_id").mockResolvedValue(adeeb)
             await expect(service.get_one_by_id(id)).resolves.toEqual(adeeb)
         })
@@ -101,7 +101,7 @@ describe.concurrent("Testing Adeebs' service", async () => {
             bio: 'عنترة بن عمرو بن شداد بن معاوية بن قراد العبسي (525 م - 608 م) هو أحد أشهر شعراء العرب في فترة ما قبل الإسلام، اشتهر بشعر الفروسية، وله معلقة مشهورة. وهو أشهر فرسان العرب وأشعرهم وشاعر المعلقات والمعروف بشعره الجميل وغزله العفيف بعبلة.',
             reviewed: true,
         }
-        test("Success Test: returns created Adeeb", async() => {
+        test("Success Test", async() => {
             vi.spyOn(repository, "create_one").mockResolvedValue({id, created_at, updated_at, ...adeeb})
             await expect(service.create_one(adeeb)).resolves.toEqual({id, created_at, updated_at, ...adeeb})
         })
@@ -140,7 +140,7 @@ describe.concurrent("Testing Adeebs' service", async () => {
             {id, created_at, updated_at, ...adeeb1},
             {id, created_at, updated_at, ...adeeb2},
         ]
-        test("Success Test: returns created Adeebs, their count and invalid items", async() => {
+        test("Success Test", async() => {
             vi.spyOn(repository, "create_many").mockResolvedValue(
                 {
                     created_items: success_inserts, 
@@ -165,7 +165,7 @@ describe.concurrent("Testing Adeebs' service", async () => {
         const id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6";
         const name = 'عنترة بن شداد';
         const time_period = TimePeriodEnum.JAHLI;
-        test("Success Test: updatse adeeb", async() => {
+        test("Success Test", async() => {
             vi.spyOn(repository, "update_one").mockResolvedValue(null)
             await expect(service.update_one(id, {name, time_period})).resolves.toEqual(null)
         })
@@ -183,7 +183,7 @@ describe.concurrent("Testing Adeebs' service", async () => {
     })
     describe("Testing delete_one()", async () => {
         const id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6";
-        test("Success Test: updatse adeeb", async() => {
+        test("Success Test", async() => {
             vi.spyOn(repository, "delete_one").mockResolvedValue(null)
             await expect(service.delete_one(id)).resolves.toEqual(null)
         })
