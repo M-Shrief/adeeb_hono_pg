@@ -1,9 +1,7 @@
 import { describe, expect, it, vi, test, beforeAll } from 'vitest';
 ///////
 import { safeParse } from 'valibot';
-import { TimePeriodEnum } from '../../database/schemas.js';
 import {create_many_req, create_one_req, get_one_res, update_req} from './schema.js'
-import { reviewed } from '../../database/columns.js';
 
 
 describe.concurrent("Testing Poems' schema", async () => {
