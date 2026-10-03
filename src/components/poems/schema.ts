@@ -17,7 +17,8 @@ export const get_one_res = object({
   verses: verses_schema,
   is_couplet: is_couplet_schema,
   reviewed: reviewed_schema,
-  adeeb_id: adeeb_schema,
+  adeeb_id: uuid_schema,
+  adeeb: adeeb_schema,
   chosen_verses: array(chosen_verses_schema)
 })
 
