@@ -391,7 +391,8 @@ const delete_order = async(id: string) => {
 
 const delete_print = async(order_id: string, print_id: string) => {
     try {        
-        await db.delete(prints_table).where(eq(prints_table.order_id, print_id))
+        let res = await db.delete(prints_table).where(eq(prints_table.id, print_id)).returning()
+        logger.info(`here: ${res}`)
         // Delete from cache after update to prevent showing old data
         let cache_key = format_key_by_id(cache_prefix, order_id)
         await cache_del(cache_key)
