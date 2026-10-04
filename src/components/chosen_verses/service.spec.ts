@@ -127,7 +127,8 @@ describe.concurrent("Testing ChosenVerse' service", async () => {
 
     describe("Testing create_many()", async () => {
         const id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
-        const adeeb_id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
+        const adeeb_id1 = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
+        const adeeb_id2 = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
         const poem_id = "e7749f21-9cf9-4981-b7a8-2ce262f159f6"
         let date = new Date() 
         let created_at = date
@@ -142,7 +143,7 @@ describe.concurrent("Testing ChosenVerse' service", async () => {
             is_couplet: true,
             tags: ["tag1", "tag2"],
             reviewed: true,
-            adeeb_id: adeeb_id,
+            adeeb_id: adeeb_id1,
             poem_id: poem_id,
         }
         const chosen_verse2 = {
@@ -155,7 +156,20 @@ describe.concurrent("Testing ChosenVerse' service", async () => {
             is_couplet: true,
             tags: ["tag1", "tag2"],
             reviewed: true,
-            adeeb_id: adeeb_id,
+            adeeb_id: adeeb_id1,
+            poem_id: poem_id,
+        }
+        const chosen_verse3 = {
+            verses: [
+                "verse1",
+                "verse2",
+                "verse3",
+                "verse4",
+            ],
+            is_couplet: true,
+            tags: ["tag1", "tag2"],
+            reviewed: true,
+            adeeb_id: adeeb_id2,
             poem_id: poem_id,
         }
         const success_inserts = [
@@ -167,13 +181,13 @@ describe.concurrent("Testing ChosenVerse' service", async () => {
                 {
                     created_items: success_inserts, 
                     success_count: 2, 
-                    invalid_items: [{item_index: 2, message: "ChosenVerse already exists"}]
+                    invalid_items: [{item_index: 2, message: "Foreign Key Error"}]
                 }
             )
-            await expect(service.create_many([chosen_verse1, chosen_verse2, chosen_verse1])).resolves.toEqual({
+            await expect(service.create_many([chosen_verse1, chosen_verse2])).resolves.toEqual({
                     created_items: success_inserts, 
                     success_count: 2, 
-                    invalid_items: [{item_index: 2, message: "ChosenVerse already exists"}]
+                    invalid_items: [{item_index: 2, message: "Foreign Key Error"}]
                 }
             )
         })
