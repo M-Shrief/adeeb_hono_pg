@@ -12,12 +12,14 @@ import { create_many_schema } from '../../schemas/api.js';
 
 
 export const get_one_res = object({
+  id: uuid_schema,
   qoute: qoute_schema,
   source: optional(source_schema),
   tags: tags_schema,
   reviewed: reviewed_schema,
 
-  adeeb_id: adeeb_schema,
+  adeeb_id: uuid_schema,
+  adeeb: adeeb_schema
 });
 
 
