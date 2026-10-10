@@ -68,7 +68,7 @@ users_route.get(
     async(c) => {
         try {
             let auth_header = c.req.header("Authorization") as string // header was already validated
-            let existing_user = await service.get_one_by_id(null,auth_header)
+            let existing_user = await service.get_current_one(auth_header)
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
