@@ -328,7 +328,7 @@ users_route.delete(
     async(c) => {
         try {
             let auth_header = c.req.header("Authorization") as string
-            await service.delete_one(null, auth_header)
+            await service.delete_current_user(auth_header)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
             
         } catch(e) {
