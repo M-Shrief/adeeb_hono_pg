@@ -24,6 +24,7 @@ import { poem_route } from "./components/poems/route.js";
 import { chosen_verses_route } from "./components/chosen_verses/route.js";
 import { prose_qoute_route } from "./components/prose_qoutes/route.js";
 import { users_route } from "./components/users/route.js";
+import { jwts_route } from "./components/users/jwts/route.js";
 import { orders_route } from "./components/orders/route.js";
 
 const app = new Hono();
@@ -159,6 +160,7 @@ app.route("/api/v1", poem_route)
 app.route("/api/v1", chosen_verses_route)
 app.route("/api/v1", prose_qoute_route)
 app.route("/api/v1", users_route)
+app.route("/api/v1", jwts_route)
 app.route("/api/v1", orders_route)
 
 
