@@ -71,6 +71,8 @@ export const RoleEnum = {
   BANNED: "Banned"
 } as const
 
+export type RoleEnumType = typeof RoleEnum[keyof typeof RoleEnum];
+
 export const roles_enum = pgEnum("roles_enum", [RoleEnum.NORMAL, RoleEnum.MANAGMENT, RoleEnum.DBA, RoleEnum.ANALYTICS, RoleEnum.BANNED]);
 
 export const user_table = pgTable('users', {
@@ -80,6 +82,28 @@ export const user_table = pgTable('users', {
     roles: roles_enum().array().default([RoleEnum.NORMAL]).notNull(),
     ...timestamps
 })
+
+
+export const TokenTypeEnum = {
+    ACCESS: "access",
+    REFRESH: "refresh"
+} as const
+export type TokenType = typeof TokenTypeEnum[keyof typeof TokenTypeEnum];
+
+export const token_type_enum = pgEnum("token_type_enum", [TokenTypeEnum.ACCESS, TokenTypeEnum.REFRESH]);
+
+export const jwt_table = pgTable('jwts', {
+    jti: uuid().primaryKey().defaultRandom(),
+    family_id: uuid().notNull(),
+    used: boolean().default(false).notNull(),
+    is_banned: boolean().default(false).notNull(),
+    token_type: token_type_enum().default(TokenTypeEnum.ACCESS).notNull(),
+    exp: timestamp().notNull(),
+    iat: timestamp().notNull(),
+    // relations
+    user_id: uuid().notNull(),
+})
+
 
 export const OrderStatusEnum = {
     IN_PROGRESS: "in progress",
@@ -180,6 +204,13 @@ export const user_relations = relations(user_table, ({ many }) => ({
     prints: many(prints_table),
 }));
 
+
+export const jwt_relations = relations(jwt_table, ({one, many}) => ({
+	user: one(user_table, {
+		fields: [jwt_table.user_id],
+		references: [user_table.id],
+	}),
+}));
 
 export const order_relations = relations(order_table, ({one, many}) => ({
 	user: one(user_table, {
