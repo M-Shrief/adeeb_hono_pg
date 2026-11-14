@@ -86,6 +86,28 @@ export const query_validator = (schema: any, message?: string, show_errors: bool
     }
   });
 
+export const cookie_validator = (schema: any, message?: string, show_errors: boolean = true) =>
+  vValidator("cookie", schema, (result, c) => {
+    if (!result.success) {
+      if (show_errors) {
+        return c.json(
+          {
+            message: message ?? 'query validation error',
+            errors: format_errors(result.error)
+          },
+          HttpStatusCode.UNPROCESSABLE_ENTITY,
+        );
+      } else {
+        return c.json(
+          {
+            message: message ?? 'query validation error',
+          },
+          HttpStatusCode.UNPROCESSABLE_ENTITY,
+        );
+      }
+    }
+  });
+
 
 export const id_param_validator = () =>
   param_validator(object({ id: uuid_schema }), 'Invalid id');
