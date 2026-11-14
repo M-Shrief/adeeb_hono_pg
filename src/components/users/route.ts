@@ -11,6 +11,7 @@ import { base_response_schema, queries_schema_for_get_all_req, get_all_schema} f
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
 import { service } from './service.js';
 import { APIError } from '../../utils/errors.js';
+import { set_refresh_token_cookie } from '../../auth/utils.js';
 
 export const users_route = new Hono() 
 
@@ -142,8 +143,9 @@ users_route.post(
     async(c) => {
         try {
             let new_data = await c.req.json()
-            let response_body = await service.signup(new_data)
-            return c.json(response_body, HttpStatusCode.CREATED)
+            let {res_body, refresh_token} = await service.signup(new_data)
+            await set_refresh_token_cookie(c, refresh_token)
+            return c.json(res_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {
@@ -174,8 +176,9 @@ users_route.post(
     async(c) => {
         try {
             let login_data = await c.req.json()
-            let response_body = await service.login(login_data)
-            return c.json(response_body, HttpStatusCode.CREATED)
+            let {res_body, refresh_token} = await service.login(login_data)
+            await set_refresh_token_cookie(c, refresh_token)
+            return c.json(res_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
                 switch(e.status_code) {

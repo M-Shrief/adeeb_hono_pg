@@ -6,6 +6,8 @@ import * as auth_utils from '../../utils/auth.js'
 import { APIError } from "../../utils/errors.js"
 import { logger } from "../../utils/logger.js"
 import { repository } from "./repository.js"
+import * as jwt_service from "./jwts/service.js"
+import { Claims } from "../../schemas/jwt.js"
 
 const get_all = async(auth_header: string, limit: number, offset: number) => {
     try {
@@ -92,8 +94,14 @@ const get_one_by_id = async(id: string, auth_header: string) => {
 const signup = async(new_data: any) => {
     try {
         let new_user = await repository.signup(new_data)
-        let access_token = await sign_token(new_user.id, new_user.username, new_user.roles)
-        return {user: {id: new_user.id, username: new_user.username, roles: new_user.roles}, access_token}
+
+        let claims_user: Claims["user"] = {id: new_user.id, username: new_user.username, roles: new_user.roles}
+        const {access_token, refresh_token} = await jwt_service.new_tokens(claims_user)
+
+        return {
+            res_body: {user: {id: new_user.id, username: new_user.username, roles: new_user.roles}, access_token},
+            refresh_token
+        }
     } catch(e) {
         if(e instanceof APIError) {
             throw e
@@ -111,9 +119,14 @@ const login = async(login_data: any) => {
         if (!pass_is_correct) {
             throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
         }
+        
+        let claims_user: Claims["user"] = {id: existing_user.id, username: existing_user.username, roles: existing_user.roles}
+        const {access_token, refresh_token} = await jwt_service.new_tokens(claims_user)
 
-        let access_token = await sign_token(existing_user.id, existing_user.username, existing_user.roles)
-        return {user: {id: existing_user.id, username: existing_user.username, roles: existing_user.roles}, access_token}
+        return {
+            res_body: {user: {id: existing_user.id, username: existing_user.username, roles: existing_user.roles}, access_token},
+            refresh_token
+        }
     } catch(e) {
         if(e instanceof APIError) {
             throw e
