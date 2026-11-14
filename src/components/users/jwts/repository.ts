@@ -4,9 +4,13 @@ import {randomUUID} from "node:crypto"
 import { logger } from '../../../utils/logger.js';
 import { db } from "../../../database/index.js"
 import { jwt_table, TokenType, TokenTypeEnum } from "../../../database/schemas.js";
+import { cache_del, cache_get, cache_set, format_key_by_id } from "../../../cache/utils.js"
 import { Claims } from "../../../schemas/jwt.js";
 import * as time_utils from "../../../utils/time.js"
 import {ACCESS_EXP_MIN_DELTA, REFRESH_EXP_MIN_DELTA, new_claims, sign_jwt} from "../../../auth/jwt.js"
+import { APIError } from '../../../utils/errors.js'
+import { HttpStatusCode } from '../../../utils/api.js';
+import { JWTType } from './scheme.js';
 
 const cache_prefix = "jwts" 
 
@@ -109,3 +113,50 @@ export const new_tokens = async(user: Claims["user"], family_id?: string) => {
     // let refresh_token = await sign_jwt(refresh_claims)
     // return {access_token, refresh_token}
 } 
+
+
+export const get_one_by_id = async (id: string) => {
+    try {
+        let cache_key = format_key_by_id(cache_prefix, id)
+        let cache_res = await cache_get(cache_key)
+
+        if(cache_res) {
+            return cache_res as JWTType
+        }
+
+        let jwt = await db.query.jwt_table.findFirst({
+            columns: {
+                jti: true,
+                family_id: true,
+                token_type: true,
+                exp: true,
+                iat: true,
+                is_banned: true,
+                used: true,
+
+                user_id: true,
+            },
+            with: {
+                user: {
+                    columns: {
+                        id: true,
+                        username: true,
+                        roles: true
+                    }
+                },
+            },
+            where: (jwt_table, { eq }) => eq(jwt_table.jti, id),
+        })
+        if (!jwt) {
+            throw new APIError(HttpStatusCode.NOT_FOUND, "repository")
+        }
+        return jwt
+    } catch(e) {
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in GET /jwts/:id")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
+        }
+    }  
+}
