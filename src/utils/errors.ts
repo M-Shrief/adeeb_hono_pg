@@ -18,6 +18,8 @@ export function on_process_failure() {
   });
 }
 
+
+export type CausedIn = "controller" | "service" | "repository" | "middleware" | "internal"
 /**
  * A custom error used to used in API components,
  * make sure to specify the HTTP status code
@@ -25,8 +27,7 @@ export function on_process_failure() {
 export class APIError extends Error {
   constructor(
     public readonly status_code: HttpStatusCode,
-    // public readonly endpoint: string,
-    public readonly caused_in: "controller" | "service" | "repository" | null  = null,
+    public readonly caused_in: CausedIn,
     message: string = "API Error",
   ) {
     super(message);
