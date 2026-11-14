@@ -17,7 +17,7 @@ const cache_prefix = "jwts"
 /**
  * return JWT claims for access & refresh token respectively
  */
-export const new_tokens = async(user: Claims["user"], family_id?: string) => {
+const new_tokens = async(user: Claims["user"], family_id?: string) => {
     if (!family_id) {
         family_id = randomUUID()
     }
@@ -115,7 +115,7 @@ export const new_tokens = async(user: Claims["user"], family_id?: string) => {
 } 
 
 
-export const get_one_by_id = async (id: string) => {
+const get_one_by_id = async (id: string) => {
     try {
         let cache_key = format_key_by_id(cache_prefix, id)
         let cache_res = await cache_get(cache_key)
@@ -159,4 +159,9 @@ export const get_one_by_id = async (id: string) => {
             throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
         }
     }  
+}
+
+export const repository = {
+    new_tokens,
+    get_one_by_id,
 }

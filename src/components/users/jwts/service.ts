@@ -2,12 +2,12 @@
 import { logger } from '../../../utils/logger.js';
 import { Claims } from "../../../schemas/jwt.js";
 import { new_claims, sign_jwt, verify_jwt } from "../../../auth//jwt.js"
-import * as repository from "./repository.js"
+import {repository} from "./repository.js"
 import { APIError } from '../../../utils/errors.js';
 import { HttpStatusCode } from '../../../utils/api.js';
 
 
-export const new_tokens = async (user: Claims["user"], family_id?: string) => {
+const new_tokens = async (user: Claims["user"], family_id?: string) => {
     const {access_model, refresh_model} = await repository.new_tokens(user, family_id)
     let access_claims = await new_claims(
         {
@@ -35,7 +35,7 @@ export const new_tokens = async (user: Claims["user"], family_id?: string) => {
     return {access_token, refresh_token}
 }
 
-export const refresh = async (token: string) => {
+const refresh = async (token: string) => {
     let token_claims = await verify_jwt(token, "refresh") 
     if(!token_claims) {
         throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
@@ -67,4 +67,9 @@ export const refresh = async (token: string) => {
     let access_token = await sign_jwt(access_claims)
     let refresh_token = await sign_jwt(refresh_claims)
     return {access_token, refresh_token}
+}
+
+export const service = {
+    new_tokens,
+    refresh
 }

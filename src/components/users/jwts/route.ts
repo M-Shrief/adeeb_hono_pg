@@ -13,7 +13,7 @@ import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, I
 import { set_refresh_token_cookie, verify_adminstrator_middleware } from '../../../auth/utils.js';
 import { auth_header_validator, id_param_validator, json_validator, query_validator, cookie_validator } from '../../../utils/validators.js'
 import { refresh_response_schema, refresh_cookie_schema } from './scheme.js';
-import * as service from "./service.js"
+import {service} from "./service.js"
 import { logger } from '../../../utils/logger.js';
 
 export const jwts_route = new Hono()  

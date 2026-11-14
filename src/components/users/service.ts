@@ -6,7 +6,7 @@ import * as auth_utils from '../../utils/auth.js'
 import { APIError } from "../../utils/errors.js"
 import { logger } from "../../utils/logger.js"
 import { repository } from "./repository.js"
-import * as jwt_service from "./jwts/service.js"
+import {service as jwt_service} from "./jwts/service.js"
 import { Claims } from "../../schemas/jwt.js"
 
 const get_all = async(auth_header: string, limit: number, offset: number) => {
