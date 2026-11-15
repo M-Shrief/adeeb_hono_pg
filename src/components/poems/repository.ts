@@ -4,7 +4,7 @@ import { logger } from '../../utils/logger.js';
 import { db } from "../../database/index.js"
 import { cache_del, cache_get, cache_set, format_key_by_id } from "../../cache/utils.js"
 import { poem_table } from "../../database/schemas.js"
-import { APIError } from '../..//utils/errors.js'
+import { APIError } from '../../utils/errors.js'
 import { HttpStatusCode } from '../../utils/api.js';
 import { InvalidItemType } from '../../schemas/api.js';
 import { Poem } from './type.js';
@@ -50,7 +50,6 @@ const get_one_by_id = async (id: string) => {
             return cache_res as Poem
         }
 
-        let { created_at, updated_at, ...rest} = getTableColumns(poem_table) // select all columns, except created_at & updated_at.
         let poem = await db.query.poem_table.findFirst({
             columns: {
                 id: true,
