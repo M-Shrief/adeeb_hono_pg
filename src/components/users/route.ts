@@ -35,7 +35,7 @@ users_route.get(
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
 
-            let resonse_body = await service.get_all(auth_header, limit, offset) 
+            let resonse_body = await service.get_all(auth_header.slice(7), limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
@@ -69,7 +69,7 @@ users_route.get(
     async(c) => {
         try {
             let auth_header = c.req.header("Authorization") as string // header was already validated
-            let existing_user = await service.get_current_one(auth_header)
+            let existing_user = await service.get_current_one(auth_header.slice(7))
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
@@ -108,7 +108,7 @@ users_route.get(
         try {
             let auth_header = c.req.header("Authorization") as string // header was already validated
             let id = c.req.param("id")
-            let existing_user = await service.get_one_by_id(id, auth_header)
+            let existing_user = await service.get_one_by_id(id, auth_header.slice(7))
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
@@ -215,7 +215,7 @@ users_route.put(
         try {
             let auth_header = c.req.header("Authorization") as string
             let new_data = await c.req.json()
-            await service.update_current_user(auth_header, new_data)
+            await service.update_current_user(auth_header.slice(7), new_data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
             if(e instanceof APIError) {
@@ -256,7 +256,7 @@ users_route.put(
             let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
             let new_data = await c.req.json()
-            await service.update_user_by_id(id, auth_header, new_data)
+            await service.update_user_by_id(id, auth_header.slice(7), new_data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e: any) {
             if(e instanceof APIError) {
@@ -295,7 +295,7 @@ users_route.put(
         try {
             let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
-            await service.ban_user_by_id(id, auth_header)
+            await service.ban_user_by_id(id, auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e) {
             if(e instanceof APIError) {
@@ -331,7 +331,7 @@ users_route.delete(
     async(c) => {
         try {
             let auth_header = c.req.header("Authorization") as string
-            await service.delete_current_user(auth_header)
+            await service.delete_current_user(auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
             
         } catch(e) {
@@ -370,7 +370,7 @@ users_route.delete(
         try {
             let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
-            await service.delete_one(id, auth_header)
+            await service.delete_one(id, auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e) {
             if(e instanceof APIError) {

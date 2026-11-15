@@ -1,27 +1,17 @@
 ////
-import { RoleEnum } from "../../database/schemas.js"
 import { HttpStatusCode } from "../../utils/api.js"
-import { check_if_adminstrator, verify_token, OP, create_permission, check_permission, sign_token, compare_password } from "../../utils/auth.js"
-import * as auth_utils from '../../utils/auth.js'
+import { compare_password} from "../../auth/passwords.js"
+import { verify_admin_user, verify_normal_user } from "../../auth/utils.js"
 import { APIError } from "../../utils/errors.js"
 import { logger } from "../../utils/logger.js"
 import { repository } from "./repository.js"
 import {service as jwt_service} from "./jwts/service.js"
 import { Claims } from "../../schemas/jwt.js"
+import { verify_jwt } from "../../auth/jwt.js"
 
-const get_all = async(auth_header: string, limit: number, offset: number) => {
+const get_all = async(token: string, limit: number, offset: number) => {
     try {
-        let payload = await auth_utils.verify_token(auth_header) // header was already validated
-        if (!payload) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-
-        let permissions = payload["permissions"] as string[]
-        let is_authorized = auth_utils.check_if_adminstrator(permissions, OP.READ)
-        if (!is_authorized) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-
+        await verify_admin_user(token)
         let repo_result = await repository.get_all(limit, offset)
         return repo_result
     } catch(e) {
@@ -34,27 +24,14 @@ const get_all = async(auth_header: string, limit: number, offset: number) => {
     }    
 } 
 
-const get_current_one = async(auth_header: string) => {
+const get_current_one = async(token: string) => {
     try {
-        let payload = await verify_token(auth_header) 
-        if (!payload) {
+        // even if user is banned, he should be able to read his data.
+        let claims = await verify_jwt(token) 
+        if (!claims || !claims.user) {
             throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
         }
-
-        let permissions = payload["permissions"] as string[]
-        let authorized_list = [
-            create_permission(RoleEnum.NORMAL, OP.READ),
-        ]
-        
-        let is_authorized = check_permission(authorized_list, permissions, OP.READ)
-        if (!is_authorized) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-
-        let user = payload["user"] as any
-        let id = user.id as string
-
-        let repo_result = await repository.get_one_by_id(id)
+        let repo_result = await repository.get_one_by_id(claims.user.id)
         return repo_result
     } catch(e) {
         if(e instanceof APIError) {
@@ -66,19 +43,9 @@ const get_current_one = async(auth_header: string) => {
     }
 } 
 
-const get_one_by_id = async(id: string, auth_header: string) => {
+const get_one_by_id = async(id: string, token: string) => {
     try {
-        let payload = await verify_token(auth_header) 
-        if (!payload) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-
-        let permissions = payload["permissions"] as string[]
-        let is_authorized = auth_utils.check_if_adminstrator(permissions, OP.READ)
-        if (!is_authorized) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-    
+        await verify_admin_user(token)    
         let repo_result = await repository.get_one_by_id(id)
         return repo_result
     } catch(e) {
@@ -137,26 +104,14 @@ const login = async(login_data: any) => {
     }
 } 
 
-const update_current_user = async(auth_header: string, data: any) => {
+const update_current_user = async(token: string, data: any) => {
     try {
-        let payload = await verify_token(auth_header) // header was already validated
-        if (!payload) {
+        let claims = await verify_normal_user(token, "write")
+        if(!claims.user) {
             throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
         }
 
-        let permissions = payload["permissions"] as string[]
-        let authorized_list = [
-            create_permission(RoleEnum.NORMAL, OP.WRITE),
-        ]
-        
-        let is_authorized = check_permission(authorized_list, permissions, OP.WRITE)
-        if (!is_authorized) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-        
-        let user = payload["user"] as any
-        let id = user.id as string
-        let repo_result = await repository.update_current_user(id, data)
+        let repo_result = await repository.update_current_user(claims.user.id, data)
         return repo_result
     } catch(e) {
         if(e instanceof APIError) {
@@ -168,19 +123,9 @@ const update_current_user = async(auth_header: string, data: any) => {
     }
 }
 
-const update_user_by_id = async(id: string, auth_header: string, data: any) => {
+const update_user_by_id = async(id: string, token: string, data: any) => {
     try {
-        let payload = await verify_token(auth_header) // header was already validated
-        if (!payload) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-
-        let permissions = payload["permissions"] as string[]
-        let is_authorized = check_if_adminstrator(permissions, OP.WRITE)
-        if (!is_authorized) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-        
+        await verify_admin_user(token, "write")        
         let repo_result = await repository.update_user_by_id(id, data)
         return repo_result
     } catch(e) {
@@ -193,19 +138,9 @@ const update_user_by_id = async(id: string, auth_header: string, data: any) => {
     }
 }
 
-const ban_user_by_id = async(id: string, auth_header: string) => {
+const ban_user_by_id = async(id: string, token: string) => {
     try {
-        let payload = await verify_token(auth_header)
-        if (!payload) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-
-        let permissions = payload["permissions"] as string[]
-        let is_authorized = check_if_adminstrator(permissions, OP.WRITE)
-        if (!is_authorized) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-        
+        await verify_admin_user(token, "write")        
         let repo_result = await repository.ban_user_by_id(id)
         return repo_result
     } catch(e) {
@@ -218,27 +153,13 @@ const ban_user_by_id = async(id: string, auth_header: string) => {
     }
 }
 
-const delete_current_user = async(auth_header: string) => {
+const delete_current_user = async(token: string) => {
     try {
-        let payload = await verify_token(auth_header)
-        if (!payload) {
+        let claims = await verify_normal_user(token, "write")
+        if(!claims.user) {
             throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
         }
-
-        let permissions = payload["permissions"] as string[]
-        let authorized_list = [
-            create_permission(RoleEnum.NORMAL, OP.WRITE),
-        ]
-        
-        let is_authorized = check_permission(authorized_list, permissions, OP.WRITE)
-        if (!is_authorized) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-    
-        
-        let user = payload["user"] as any
-        let id = user.id as string
-        let repo_result = await repository.delete_one(id)
+        let repo_result = await repository.delete_one(claims.user.id)
         return repo_result
     } catch(e) {
         if(e instanceof APIError) {
@@ -250,18 +171,9 @@ const delete_current_user = async(auth_header: string) => {
 }
 
 
-const delete_one = async(id: string, auth_header: string) => {
+const delete_one = async(id: string, token: string) => {
     try {
-        let payload = await verify_token(auth_header)
-        if (!payload) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-
-        let permissions = payload["permissions"] as string[]
-        let is_authorized = check_if_adminstrator(permissions, OP.WRITE)
-        if (!is_authorized) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
+        await verify_admin_user(token, "write")
     
         let repo_result = await repository.delete_one(id)
         return repo_result

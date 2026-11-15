@@ -3,7 +3,6 @@ import {
   describeRoute,
 } from "hono-openapi";
 /////
-import { RoleEnum } from "../../database/schemas.js"
 import { one_schema as order_schema } from "../../schemas/order.js";
 import { one_schema as print_schema} from "../../schemas/print.js";
 import { create_order_req, create_order_res, create_many_orders_req, create_many_orders_res, create_print_res, create_print_req, update_order_req, update_print_req, create_many_prints_req, create_many_prints_res} from './schema.js'
@@ -11,7 +10,6 @@ import { logger } from '../../utils/logger.js';
 import { auth_header_validator, id_param_validator, json_validator, param_validator, query_validator } from '../../utils/validators.js'
 import { base_response_schema, queries_schema_for_get_all_req, get_all_schema } from '../../schemas/api.js';
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../utils/api.js';
-import { verify_token, create_permission, OP, check_permission, check_if_adminstrator, check_ownership} from "../../utils/auth.js"
 import { object } from 'valibot';
 import { uuid_schema } from '../../schemas/general.js';
 import { service } from './service.js';
@@ -39,7 +37,8 @@ orders_route.get(
             let auth_header = c.req.header("Authorization") as string        
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
-            let resonse_body = await service.get_all(auth_header, limit, offset) 
+
+            let resonse_body = await service.get_all(auth_header.slice(7), limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
@@ -76,7 +75,7 @@ orders_route.get(
             let auth_header = c.req.header("Authorization") as string
             let limit = Number(c.req.query('limit')) || 100
             let offset = Number(c.req.query('offset')) || 0
-            let resonse_body = await service.get_user_orders(auth_header, limit, offset) 
+            let resonse_body = await service.get_user_orders(auth_header.slice(7), limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
@@ -113,7 +112,7 @@ orders_route.get(
         try {
             let auth_header = c.req.header("Authorization") as string // header was already validated
             let id = c.req.param("id")
-            let existing_user = await service.get_one_by_id(id, auth_header)
+            let existing_user = await service.get_one_by_id(id, auth_header.slice(7))
             return c.json(existing_user, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof APIError) {
@@ -182,7 +181,7 @@ orders_route.post(
         try {
             let auth_header = c.req.header("Authorization") as string
             let data: any[] = await c.req.json()
-            let response_body = await service.create_orders(auth_header, data)
+            let response_body = await service.create_orders(auth_header.slice(7), data)
             return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
@@ -222,7 +221,7 @@ orders_route.post(
             let auth_header = c.req.header("Authorization") as string
             let order_id = c.req.param("order_id")
             let data = await c.req.json()
-            let response_body = await service.create_print(order_id, auth_header, data)
+            let response_body = await service.create_print(order_id, auth_header.slice(7), data)
             return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
@@ -261,7 +260,7 @@ orders_route.post(
             let auth_header = c.req.header("Authorization") as string
             let order_id = c.req.param("order_id")
             let data = await c.req.json()
-            let response_body = await service.create_prints(order_id, auth_header, data)
+            let response_body = await service.create_prints(order_id, auth_header.slice(7), data)
             return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
             if(e instanceof APIError) {
@@ -300,7 +299,7 @@ orders_route.put(
             let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
             let data = await c.req.json()
-            await service.update_order(id, auth_header, data)
+            await service.update_order(id, auth_header.slice(7), data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
             if(e instanceof APIError) {
@@ -342,7 +341,7 @@ orders_route.put(
             let data = await c.req.json()
             let order_id = c.req.param("order_id")
             let print_id = c.req.param("print_id")
-            await service.update_print(order_id, print_id, auth_header, data)
+            await service.update_print(order_id, print_id, auth_header.slice(7), data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
             if(e instanceof APIError) {
@@ -380,7 +379,7 @@ orders_route.delete(
         try {
             let auth_header = c.req.header("Authorization") as string
             let id = c.req.param("id")
-            await service.delete_order(id, auth_header)
+            await service.delete_order(id, auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e) {
             if(e instanceof APIError) {
@@ -419,7 +418,7 @@ orders_route.delete(
             let auth_header = c.req.header("Authorization") as string
             let order_id = c.req.param("order_id")
             let print_id = c.req.param("print_id")
-            await service.delete_print(order_id, print_id, auth_header)
+            await service.delete_print(order_id, print_id, auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e) {
             if(e instanceof APIError) {
