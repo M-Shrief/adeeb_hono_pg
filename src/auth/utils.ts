@@ -1,11 +1,14 @@
 import { Context } from 'hono';
 import { setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory';
+import { object, string } from 'valibot';
 // 
 import { RoleEnum } from '../database/schemas.js';
 import { AuthError, AuthError_ReasonEnum, new_auth_error_response } from './errors.js';
 import {create_permission, check_if_permitted, type OPType, verify_jwt, REFRESH_EXP_MIN_DELTA } from "./jwt.js"
 import { type Claims } from '../schemas/jwt.js';
+
+export const auth_header_schema = object({ authorization: string()})
 
 export async function set_refresh_token_cookie(c: Context, refresh_token: string){
     setCookie(
