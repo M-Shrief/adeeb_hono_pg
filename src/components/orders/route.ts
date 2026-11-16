@@ -13,6 +13,7 @@ import { HttpStatusCode, get_described_route, describe_jwt_security } from '../.
 import { object } from 'valibot';
 import { uuid_schema } from '../../schemas/general.js';
 import { service } from './service.js';
+import { AuthError, new_auth_error_response } from '../../auth/errors.js';
 import { APIError } from '../../utils/errors.js';
 
 
@@ -41,10 +42,11 @@ orders_route.get(
             let resonse_body = await service.get_all(auth_header.slice(7), limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -78,10 +80,11 @@ orders_route.get(
             let resonse_body = await service.get_user_orders(auth_header.slice(7), limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -115,10 +118,11 @@ orders_route.get(
             let existing_user = await service.get_one_by_id(id, auth_header.slice(7))
             return c.json(existing_user, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.NOT_FOUND:
                         return c.json({message: "Order is not Found"}, HttpStatusCode.NOT_FOUND)
                     default:
@@ -184,10 +188,11 @@ orders_route.post(
             let response_body = await service.create_orders(auth_header.slice(7), data)
             return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.BAD_REQUEST:
                         return c.json({message: e.message}, HttpStatusCode.BAD_REQUEST)
                     default:
@@ -224,10 +229,11 @@ orders_route.post(
             let response_body = await service.create_print(order_id, auth_header.slice(7), data)
             return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: e.message}, HttpStatusCode.CONFLICT)
                     default:
@@ -263,10 +269,11 @@ orders_route.post(
             let response_body = await service.create_prints(order_id, auth_header.slice(7), data)
             return c.json(response_body, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.BAD_REQUEST:
                         return c.json({message: e.message}, HttpStatusCode.BAD_REQUEST)
                     default:
@@ -302,10 +309,11 @@ orders_route.put(
             await service.update_order(id, auth_header.slice(7), data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Foriegn key error"}, HttpStatusCode.CONFLICT)
                     default:
@@ -344,10 +352,11 @@ orders_route.put(
             await service.update_print(order_id, print_id, auth_header.slice(7), data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Foriegn key error"}, HttpStatusCode.CONFLICT)
                     default:
@@ -382,10 +391,11 @@ orders_route.delete(
             await service.delete_order(id, auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Order is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
@@ -421,10 +431,11 @@ orders_route.delete(
             await service.delete_print(order_id, print_id, auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Print is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
