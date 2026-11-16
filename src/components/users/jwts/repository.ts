@@ -66,12 +66,8 @@ const new_tokens = async(user: Claims["user"], family_id?: string) => {
             for (let token of res) {
                 if(token.token_type == TokenTypeEnum.ACCESS) {
                     access_model.jti = token.jti
-                    // access_model.exp = time_utils.getDateInSec(token.exp)
-                    // access_model.iat = time_utils.getDateInSec(token.iat)
                 } else {
                     refresh_model.jti = token.jti
-                    // refresh_model.exp = time_utils.getDateInSec(token.exp)
-                    // refresh_model.iat = time_utils.getDateInSec(token.iat)
                 }
             }
         })
@@ -85,35 +81,10 @@ const new_tokens = async(user: Claims["user"], family_id?: string) => {
         })
     
     
-    // await cache_set(format_key_by_id(cache_prefix, access_model.jti), access_model, 15)
+    await cache_set(format_key_by_id(cache_prefix, access_model.jti), access_model, 15)
 
     return {access_model, refresh_model}
-    // let access_claims = await new_claims(
-    //     {
-    //         jti: access_model.jti, 
-    //         family_id: access_model.family_id, 
-    //         token_type: access_model.token_type, 
-    //         exp: access_model.exp, 
-    //         iat: access_model.iat,
-    //     },
-    //     user
-    // )
-    // let refresh_claims = await new_claims(
-    //     {
-    //         jti: refresh_model.jti, 
-    //         family_id: refresh_model.family_id, 
-    //         token_type: refresh_model.token_type, 
-    //         exp: refresh_model.exp, 
-    //         iat: refresh_model.iat,
-    //     },
-    //     user
-    // )
-
-    // let access_token = await sign_jwt(access_claims)
-    // let refresh_token = await sign_jwt(refresh_claims)
-    // return {access_token, refresh_token}
 } 
-
 
 const get_one_by_id = async (id: string) => {
     try {

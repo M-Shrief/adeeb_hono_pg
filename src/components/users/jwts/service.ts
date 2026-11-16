@@ -36,11 +36,11 @@ const new_tokens = async (user: Claims["user"], family_id?: string) => {
 }
 
 const refresh = async (token: string) => {
-    let token_claims = await verify_jwt(token, "refresh") 
-    if(!token_claims) {
+    let result = await verify_jwt(token, "refresh") 
+    if(result.error) {
         throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
     }
-    let token_model = await repository.get_one_by_id(token_claims.jti)
+    let token_model = await repository.get_one_by_id(result.claims.jti)
 
     const {access_model, refresh_model} = await repository.new_tokens(token_model.user, token_model.family_id)
     let access_claims = await new_claims(
