@@ -1,13 +1,13 @@
-import { decode, sign, verify } from 'hono/jwt'
-import { JWTPayload } from 'hono/utils/jwt/types';
+import { sign, verify } from 'hono/jwt'
+import * as jwt_classes from 'hono/utils/jwt/types';
 import { ACCESS_JWT_PRIVATE_KEY, ACCESS_JWT_PUBLIC_KEY, REFRESH_JWT_PRIVATE_KEY, REFRESH_JWT_PUBLIC_KEY } from '../config.js'
-import { createMiddleware } from 'hono/factory';
+import {parse, ValiError} from "valibot"
 // 
 import { RoleEnum, RoleEnumType, TokenType, TokenTypeEnum } from '../database/schemas.js';
-import { HttpStatusCode } from '../utils/api.js';
 import { logger } from '../utils/logger.js';
 import { getDateInSec } from '../utils/time.js';
-import {Claims} from "../schemas/jwt.js"
+import { Claims, claims_schema } from "../schemas/jwt.js"
+import { AuthError, AuthError_ReasonEnum, AuthError_ReasonEnumType } from './errors.js';
 
 export async function sign_jwt(claims: Claims) {
     if (claims.token_type == "access") {
@@ -24,18 +24,36 @@ export async function sign_jwt(claims: Claims) {
         );
     }
 } 
-export async function verify_jwt(token: string, type: TokenType = TokenTypeEnum.ACCESS) {
+
+// preserve types as object or object, so that we don't need to double check of claims & errors everytime.
+export async function verify_jwt(token: string, type: TokenType = TokenTypeEnum.ACCESS): Promise<{claims: Claims, error: null} | {claims: null, error: AuthError_ReasonEnumType}>{
     try {
-        let payload: JWTPayload
+        let payload: jwt_classes.JWTPayload
         if (type == "refresh") {
             payload =  await verify(token, REFRESH_JWT_PUBLIC_KEY, "RS256") 
         } else {
             payload =  await verify(token, ACCESS_JWT_PUBLIC_KEY, "RS256") 
         }
-        return payload as Claims
+
+        let claims: Claims = parse(claims_schema, payload)
+        return {claims, error: null}
+
     } catch(e) {
         logger.error(`Error verifing JWT, error: ${e}`)
-        return null
+        if(e instanceof ValiError) {
+            return {claims: null, error: AuthError_ReasonEnum.INVALID_CLAIMS}
+        }
+        if(e instanceof jwt_classes.JwtTokenExpired) {
+            return {claims: null, error: AuthError_ReasonEnum.EXPIRED}
+        }
+        if(e instanceof jwt_classes.JwtTokenNotBefore) {
+            return {claims: null, error: AuthError_ReasonEnum.IMMATURE}
+        }
+        if(e instanceof jwt_classes.JwtTokenInvalid) {
+            return {claims: null, error: AuthError_ReasonEnum.INVALID_TOKEN}
+        }
+        // logger.error(`Error verifing JWT, error: ${e}`)
+        return {claims: null, error: AuthError_ReasonEnum.UNKNOWN}
     }
 } 
 
