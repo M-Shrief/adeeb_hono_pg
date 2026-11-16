@@ -12,7 +12,7 @@ import { HttpStatusCode, get_described_route, describe_jwt_security } from '../.
 import { service } from './service.js';
 import { APIError } from '../../utils/errors.js';
 import { set_refresh_token_cookie } from '../../auth/utils.js';
-import { AuthError, new_auth_error_response } from '../../auth/errors.js';
+import { auth_error_response_schema, AuthError, new_auth_error_response } from '../../auth/errors.js';
 
 export const users_route = new Hono() 
 
@@ -24,7 +24,7 @@ users_route.get(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.OK, "Get All Users", get_all_schema(one_schema)),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
@@ -64,7 +64,7 @@ users_route.get(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.OK, "Get Current User", one_schema),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -102,7 +102,7 @@ users_route.get(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.OK, "Get Current User", one_schema),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -177,7 +177,7 @@ users_route.post(
         summary: "Login",
         responses: {
            ...get_described_route(HttpStatusCode.CREATED, "Successful login", user_authorized_res),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
@@ -214,7 +214,7 @@ users_route.put(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Update Current User", one_schema),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -254,7 +254,7 @@ users_route.put(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Update User", one_schema),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -296,7 +296,7 @@ users_route.put(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Banned User", one_schema),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -335,7 +335,7 @@ users_route.delete(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Delete Current User", one_schema),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -373,7 +373,7 @@ users_route.delete(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Delete User", one_schema),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },

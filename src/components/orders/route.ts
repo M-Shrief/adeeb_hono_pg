@@ -13,7 +13,7 @@ import { HttpStatusCode, get_described_route, describe_jwt_security } from '../.
 import { object } from 'valibot';
 import { uuid_schema } from '../../schemas/general.js';
 import { service } from './service.js';
-import { AuthError, new_auth_error_response } from '../../auth/errors.js';
+import { AuthError, new_auth_error_response, auth_error_response_schema } from '../../auth/errors.js';
 import { APIError } from '../../utils/errors.js';
 
 
@@ -27,7 +27,7 @@ orders_route.get(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.OK, "Get All Orders", get_all_schema(order_schema)),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
@@ -66,7 +66,7 @@ orders_route.get(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.OK, "Get All Orders", get_all_schema(order_schema)),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
@@ -105,7 +105,7 @@ orders_route.get(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.OK, "Get Order", order_schema),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "NOT FOUND", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -175,7 +175,7 @@ orders_route.post(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.CREATED, "Successful added Orders", create_many_orders_res),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
@@ -213,7 +213,7 @@ orders_route.post(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.CREATED, "Successful added Prints", create_print_res),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.UNPROCESSABLE_ENTITY, "Invalid data for Print", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -254,7 +254,7 @@ orders_route.post(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.CREATED, "Successful added Prints", create_many_prints_res),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
@@ -293,7 +293,7 @@ orders_route.put(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Updated Order successfully"),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.UNPROCESSABLE_ENTITY, "Invalid data for Order", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -334,7 +334,7 @@ orders_route.put(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Updated Print successfully"),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.UNPROCESSABLE_ENTITY, "Invalid data for Print", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -378,7 +378,7 @@ orders_route.delete(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Deleted Order successfully"),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
@@ -416,7 +416,7 @@ orders_route.delete(
         ...describe_jwt_security,
         responses: {
            ...get_described_route(HttpStatusCode.NO_CONTENT, "Deleted Print successfully"),
-           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", base_response_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),

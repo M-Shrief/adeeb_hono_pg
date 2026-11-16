@@ -2,11 +2,8 @@ import { Context } from "hono";
 /////////
 import { HttpStatusCode } from "../utils/api.js";
 import { APIError, CausedIn } from "../utils/errors.js";
+import { object, string, enum as enum_schema } from "valibot";
 
-
-export function new_auth_error_response(c: Context, reason: AuthError_ReasonEnumType) {
-  return c.json({ message: "Not Authorized", reason: reason}, HttpStatusCode.UNAUTHORIZED) 
-}
 
 export class AuthError extends APIError {
   constructor(
@@ -41,3 +38,11 @@ export const AuthError_ReasonEnum = {
 
 
 
+export function new_auth_error_response(c: Context, reason: AuthError_ReasonEnumType) {
+  return c.json({ message: "Not Authorized", reason: reason}, HttpStatusCode.UNAUTHORIZED) 
+}
+
+/**
+ * A basic schema for responses, which only contain a message.
+ */
+export const auth_error_response_schema = object({message: string(), reason: enum_schema(AuthError_ReasonEnum)})
