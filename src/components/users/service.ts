@@ -17,11 +17,9 @@ const get_all = async(token: string, limit: number, offset: number) => {
         return repo_result
     } catch(e) {
         if(e instanceof AuthError) {
-            logger.info("AuthError")
             throw e
         }
         if(e instanceof APIError) {
-            logger.info("APIError")
             throw e
         } else {
             logger.error({error:e}, "Error in GET /users")

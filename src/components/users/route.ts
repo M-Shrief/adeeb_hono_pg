@@ -40,11 +40,9 @@ users_route.get(
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
             if(e instanceof AuthError) {
-                logger.info("AuthError")
                 return new_auth_error_response(c, e.reason) 
             }
             if(e instanceof APIError) {
-                logger.info("APIError")
                 switch(e.status_code) {
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
