@@ -8,6 +8,7 @@ import { repository } from "./repository.js"
 import {service as jwt_service} from "./jwts/service.js"
 import { Claims } from "../../schemas/jwt.js"
 import { verify_jwt } from "../../auth/jwt.js"
+import { AuthError, AuthError_ReasonEnum } from "../../auth/errors.js"
 
 const get_all = async(token: string, limit: number, offset: number) => {
     try {
@@ -15,7 +16,12 @@ const get_all = async(token: string, limit: number, offset: number) => {
         let repo_result = await repository.get_all(limit, offset)
         return repo_result
     } catch(e) {
+        if(e instanceof AuthError) {
+            logger.info("AuthError")
+            throw e
+        }
         if(e instanceof APIError) {
+            logger.info("APIError")
             throw e
         } else {
             logger.error({error:e}, "Error in GET /users")
@@ -27,13 +33,17 @@ const get_all = async(token: string, limit: number, offset: number) => {
 const get_current_one = async(token: string) => {
     try {
         // even if user is banned, he should be able to read his data.
-        let claims = await verify_jwt(token) 
-        if (!claims || !claims.user) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
+        // so don't check his permission and we don't use verify_normal_user()
+        let result = await verify_jwt(token) 
+        if (result.error) {
+            throw new AuthError(result.error, "service")
         }
-        let repo_result = await repository.get_one_by_id(claims.user.id)
+        let repo_result = await repository.get_one_by_id(result.claims.user!.id)
         return repo_result
     } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
         if(e instanceof APIError) {
             throw e
         } else {
@@ -49,6 +59,9 @@ const get_one_by_id = async(id: string, token: string) => {
         let repo_result = await repository.get_one_by_id(id)
         return repo_result
     } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
         if(e instanceof APIError) {
             throw e
         } else {
@@ -84,7 +97,7 @@ const login = async(login_data: any) => {
         let existing_user = await repository.get_one_for_login(login_data.username)
         let pass_is_correct = await compare_password(login_data.password, existing_user.password)
         if (!pass_is_correct) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
+            throw new AuthError(AuthError_ReasonEnum.INVALID_PASS, "service")
         }
         
         let claims_user: Claims["user"] = {id: existing_user.id, username: existing_user.username, roles: existing_user.roles}
@@ -95,6 +108,9 @@ const login = async(login_data: any) => {
             refresh_token
         }
     } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
         if(e instanceof APIError) {
             throw e
         } else {
@@ -107,13 +123,12 @@ const login = async(login_data: any) => {
 const update_current_user = async(token: string, data: any) => {
     try {
         let claims = await verify_normal_user(token, "write")
-        if(!claims.user) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-
-        let repo_result = await repository.update_current_user(claims.user.id, data)
+        let repo_result = await repository.update_current_user(claims.user!.id, data)
         return repo_result
     } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
         if(e instanceof APIError) {
             throw e
         } else {
@@ -129,6 +144,9 @@ const update_user_by_id = async(id: string, token: string, data: any) => {
         let repo_result = await repository.update_user_by_id(id, data)
         return repo_result
     } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
         if(e instanceof APIError) {
             throw e
         } else {
@@ -144,6 +162,9 @@ const ban_user_by_id = async(id: string, token: string) => {
         let repo_result = await repository.ban_user_by_id(id)
         return repo_result
     } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
         if(e instanceof APIError) {
             throw e
         } else {
@@ -156,12 +177,12 @@ const ban_user_by_id = async(id: string, token: string) => {
 const delete_current_user = async(token: string) => {
     try {
         let claims = await verify_normal_user(token, "write")
-        if(!claims.user) {
-            throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
-        }
-        let repo_result = await repository.delete_one(claims.user.id)
+        let repo_result = await repository.delete_one(claims.user!.id)
         return repo_result
     } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
         if(e instanceof APIError) {
             throw e
         } else {
@@ -178,6 +199,9 @@ const delete_one = async(id: string, token: string) => {
         let repo_result = await repository.delete_one(id)
         return repo_result
     } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
         if(e instanceof APIError) {
             throw e
         } else {

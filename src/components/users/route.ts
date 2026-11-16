@@ -12,6 +12,7 @@ import { HttpStatusCode, get_described_route, describe_jwt_security } from '../.
 import { service } from './service.js';
 import { APIError } from '../../utils/errors.js';
 import { set_refresh_token_cookie } from '../../auth/utils.js';
+import { AuthError, new_auth_error_response } from '../../auth/errors.js';
 
 export const users_route = new Hono() 
 
@@ -38,10 +39,13 @@ users_route.get(
             let resonse_body = await service.get_all(auth_header.slice(7), limit, offset) 
             return c.json(resonse_body, HttpStatusCode.OK)
         } catch(e) {
+            if(e instanceof AuthError) {
+                logger.info("AuthError")
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
+                logger.info("APIError")
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -73,10 +77,11 @@ users_route.get(
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.NOT_FOUND:
                         return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
                     default:
@@ -112,10 +117,11 @@ users_route.get(
             return c.json(existing_user, HttpStatusCode.OK)
 
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.NOT_FOUND:
                         return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
                     default:
@@ -147,6 +153,9 @@ users_route.post(
             await set_refresh_token_cookie(c, refresh_token)
             return c.json(res_body, HttpStatusCode.CREATED)
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
@@ -180,11 +189,12 @@ users_route.post(
             await set_refresh_token_cookie(c, refresh_token)
             return c.json(res_body, HttpStatusCode.CREATED)
         } catch(e) {
+             if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Password isn't correct"}, HttpStatusCode.UNAUTHORIZED)
-                    case HttpStatusCode.NOT_FOUND:
+                   case HttpStatusCode.NOT_FOUND:
                         return c.json({message: "User is not Found"}, HttpStatusCode.NOT_FOUND)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
@@ -218,10 +228,11 @@ users_route.put(
             await service.update_current_user(auth_header.slice(7), new_data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
         } catch(e: any) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
                     default:
@@ -259,10 +270,11 @@ users_route.put(
             await service.update_user_by_id(id, auth_header.slice(7), new_data)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e: any) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
                     default:
@@ -298,10 +310,11 @@ users_route.put(
             await service.ban_user_by_id(id, auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -335,10 +348,11 @@ users_route.delete(
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)
             
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "User is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
@@ -373,10 +387,11 @@ users_route.delete(
             await service.delete_one(id, auth_header.slice(7))
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
             if(e instanceof APIError) {
                 switch(e.status_code) {
-                    case HttpStatusCode.UNAUTHORIZED:
-                        return c.json({message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED)
                     case HttpStatusCode.CONFLICT:
                         return c.json({message: "User is refrenced in other tables"}, HttpStatusCode.CONFLICT)
                     default:
