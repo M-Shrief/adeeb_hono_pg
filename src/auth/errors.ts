@@ -1,6 +1,12 @@
+import { Context } from "hono";
 /////////
 import { HttpStatusCode } from "../utils/api.js";
 import { APIError, CausedIn } from "../utils/errors.js";
+
+
+export function new_auth_error_response(c: Context, reason: AuthError_ReasonEnumType) {
+  return c.json({ message: "Not Authorized", reason: reason}, HttpStatusCode.UNAUTHORIZED) 
+}
 
 export class AuthError extends APIError {
   constructor(
@@ -10,6 +16,8 @@ export class AuthError extends APIError {
   ) {
     super(HttpStatusCode.UNAUTHORIZED, caused_in, message);
     this.name = "AuthError";
+    // Restore the prototype chain (required when extending built-in classes)
+    Object.setPrototypeOf(this, AuthError.prototype);
     Error.captureStackTrace(this);
   }  
 }
