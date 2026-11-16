@@ -28,8 +28,13 @@ const get_all = async(token: string, limit: number, offset: number) => {
 
 const get_user_orders = async(token: string, limit: number, offset: number) => {
     try {
-        let claims = await verify_normal_user(token)
-        let repo_result = await repository.get_user_orders(claims.user!.id, limit, offset)
+        // even if user is banned, he should be able to read his data.
+        // so don't check his permission and we don't use verify_normal_user()
+        let result = await verify_jwt(token) 
+        if (result.error) {
+            throw new AuthError(result.error, "service")
+        }
+        let repo_result = await repository.get_user_orders(result.claims.user!.id, limit, offset)
         return repo_result
     } catch(e) {
         if(e instanceof AuthError) {
