@@ -72,7 +72,7 @@ const get_user_orders = async (user_id: string, limit: number, offset: number) =
                 offset: offset,
                 where: (order_table, { eq }) => eq(order_table.user_id, user_id),
             }),
-            await db.select({total_count: sql<number>`count(*) OVER()`.mapWith(Number)}).from(order_table)
+            await db.select({total_count: sql<number>`count(*) OVER()`.mapWith(Number)}).from(order_table).where(eq(order_table.user_id, user_id))
         ])
         
         let total_count = counts[0] ? counts[0].total_count : 0 
