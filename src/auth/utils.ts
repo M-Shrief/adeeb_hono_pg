@@ -1,12 +1,10 @@
 import { Context } from 'hono';
 import { setCookie } from 'hono/cookie'
 import { createMiddleware } from 'hono/factory';
-import { JWTPayload } from 'hono/utils/jwt/types';
 // 
 import { RoleEnum } from '../database/schemas.js';
-import { HttpStatusCode } from '../utils/api.js';
-import { APIError } from '../utils/errors.js';
-import {create_permission, check_if_permitted, type OPType, verify_jwt, ACCESS_EXP_MIN_DELTA, REFRESH_EXP_MIN_DELTA } from "./jwt.js"
+import { AuthError, AuthError_ReasonEnum, new_auth_error_response } from './errors.js';
+import {create_permission, check_if_permitted, type OPType, verify_jwt, REFRESH_EXP_MIN_DELTA } from "./jwt.js"
 import { type Claims } from '../schemas/jwt.js';
 
 export async function set_refresh_token_cookie(c: Context, refresh_token: string){
@@ -49,34 +47,33 @@ export const check_item_ownership = (item_owner_id: string | null, claims: Claim
 }
 
 export const verify_admin_user = async (token: string, op: OPType = "read") => {
-    let claims = await verify_jwt(token) // header was already validated
-    if (!claims || !claims.permissions) {
-        throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
+    let result = await verify_jwt(token)
+    if (result.error != null ) { // if it's a string, then it threw AuthError. And it's value is AuthError.reason 
+        throw new AuthError(result.error, "service")
     }
-
-    let is_authorized = check_if_adminstrator(claims.permissions, op)
+    let is_authorized = check_if_adminstrator(result.claims.permissions!, op)
     if (!is_authorized) {
-        throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
+        throw new AuthError(AuthError_ReasonEnum.PERM, "service")
     }
 
-    return claims
+    return result.claims
 }
 export const verify_normal_user = async (token: string, op: OPType = "read") => {
-    let claims = await verify_jwt(token) 
-    if (!claims || !claims.permissions) {
-        throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
+    let result = await verify_jwt(token)
+    if (result.error != null ) { // if it's a string, then it threw AuthError. And it's value is AuthError.reason 
+        throw new AuthError(result.error, "service")
     }
 
     let authorized_list = [
         create_permission(RoleEnum.NORMAL, op),
     ]
     
-    let is_authorized = check_if_permitted(authorized_list, claims.permissions, op)
+    let is_authorized = check_if_permitted(authorized_list, result.claims.permissions!, op)
     if (!is_authorized) {
-        throw new APIError(HttpStatusCode.UNAUTHORIZED, "service")
+        throw new AuthError(AuthError_ReasonEnum.PERM, "service")
     }
 
-    return claims
+    return result.claims
 }
 
 /**
@@ -85,21 +82,17 @@ export const verify_normal_user = async (token: string, op: OPType = "read") => 
  */
 export const verify_admin_middleware = () =>
   createMiddleware(async (c, next) => {
-    let auth_header = c.req.header("Authorization")
-    if (!auth_header) {
-        return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-    }
+    try {
+        let auth_header = c.req.header("Authorization")
+        if (!auth_header) {
+            return new_auth_error_response(c, AuthError_ReasonEnum.INVALID_TOKEN) 
+        }
 
-    let payload = await verify_jwt(auth_header.slice(7))
-    if (!payload) {
-        return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
+        await verify_admin_user(auth_header.slice(7), "write")
+        await next();
+    } catch(e) {
+        if(e instanceof AuthError) {
+            return new_auth_error_response(c, e.reason) 
+        }
     }
-
-    let permissions = payload["permissions"] as string[]
-    let is_adminstrator = check_if_adminstrator(permissions, "write")
-    if (!is_adminstrator) {
-        return c.json({ message: "Not Authorized"}, HttpStatusCode.UNAUTHORIZED) 
-    }
-
-    await next();
   });
