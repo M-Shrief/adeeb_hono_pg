@@ -211,7 +211,7 @@ users_route.put(
         summary: "Update Current User",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.NO_CONTENT, "Update Current User", one_schema),
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Update Current User"),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
@@ -251,7 +251,7 @@ users_route.put(
         summary: "Update One",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.NO_CONTENT, "Update User", one_schema),
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Update User"),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
@@ -293,7 +293,7 @@ users_route.put(
         summary: "Ban User",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.NO_CONTENT, "Banned User", one_schema),
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Banned User"),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
@@ -332,7 +332,7 @@ users_route.delete(
         summary: "Delete Current User",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.NO_CONTENT, "Delete Current User", one_schema),
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Delete Current User"),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
@@ -370,7 +370,7 @@ users_route.delete(
         summary: "Delete One",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.NO_CONTENT, "Delete User", one_schema),
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Delete User"),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.NOT_FOUND, "User's not found", base_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
