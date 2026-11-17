@@ -103,7 +103,46 @@ const refresh = async (token: string) => {
     }
 }
 
+const get_all = async(token: string, limit: number, offset: number) => {
+    try {
+        await verify_admin_user(token)
+        let repo_result = await repository.get_all(limit, offset)
+        return repo_result
+    } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in GET /jwts")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }    
+} 
+
+const get_one_by_id = async (id: string, token: string) => {
+    try {
+        await verify_admin_user(token)
+        let repo_result = await repository.get_one_by_id(id)
+        return repo_result
+    } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in GET /jwts")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }    
+}
+
+
 export const service = {
     new_tokens,
     refresh,
+    get_all,
+    get_one_by_id,
 }

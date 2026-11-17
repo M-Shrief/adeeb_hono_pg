@@ -55,3 +55,81 @@ jwts_route.post(
     }
 )
 
+
+jwts_route.get(
+    "/jwts",
+    describeRoute({
+        tags: ["JWTs"],
+        summary: "Get All",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.OK, "Get All Users", get_all_schema(one_schema)),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    query_validator(queries_schema_for_get_all_req),
+    auth_header_validator(),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization") as string // header was already validated
+            let limit = Number(c.req.query('limit')) || 100
+            let offset = Number(c.req.query('offset')) || 0
+
+            let resonse_body = await service.get_all(auth_header.slice(7), limit, offset) 
+            return c.json(resonse_body, HttpStatusCode.OK)
+        } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
+            logger.error({error: e}, "Error in GET /jwts")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
+    }
+)
+
+jwts_route.get(
+    "/jwts/:id",
+    describeRoute({
+        tags: ["JWTs"],
+        summary: "Get One",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.OK, "Get JWT by id", one_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
+           ...get_described_route(HttpStatusCode.NOT_FOUND, "JWT's not found", base_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    id_param_validator(),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization") as string // header was already validated
+            let id = c.req.param("id")
+            let existing_user = await service.get_one_by_id(id, auth_header.slice(7))
+            return c.json(existing_user, HttpStatusCode.OK)
+
+        } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.NOT_FOUND:
+                        return c.json({message: "JWT is not Found"}, HttpStatusCode.NOT_FOUND)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
+            logger.error({error: e}, "Error in GET /jwts/:id")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
+    }    
+)
