@@ -133,7 +133,7 @@ const get_one_by_id = async (id: string, token: string) => {
         if(e instanceof APIError) {
             throw e
         } else {
-            logger.error({error:e}, "Error in GET /jwts")
+            logger.error({error:e}, "Error in GET /jwts/{id}")
             throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
         }
     }    
@@ -157,10 +157,52 @@ const update_one = async(id: string, token: string, data: any) => {
     }
 }
 
+const ban_one = async(id: string, token: string) => {
+    try {
+        await verify_admin_user(token, "write")        
+        let repo_result = await repository.update_one(id, {is_banned: true})
+        return repo_result
+    } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in PUT /jwts/:id/ban")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }
+}
+
+const ban_jwts_with_filters = async(token: string, user_id?: string, family_id?: string) => {
+    try {
+        await verify_admin_user(token, "write")        
+        let repo_result = await repository.ban_jwts_with_filters(user_id, family_id)
+        return repo_result
+    } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, `error in banning multiple JWTs with filters, family: ${family_id} & user: ${user_id}`)
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }
+}
+
+
+
+
+
 export const service = {
     new_tokens,
     refresh,
     get_all,
     get_one_by_id,
     update_one,
+    ban_one,
+    ban_jwts_with_filters,
 }

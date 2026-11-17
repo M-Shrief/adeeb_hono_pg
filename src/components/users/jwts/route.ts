@@ -6,12 +6,14 @@ import { APIError } from '../../../utils/errors.js';
 import { HttpStatusCode, get_described_route, describe_jwt_security } from '../../../utils/api.js';
 import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, InvalidItemType} from '../../../schemas/api.js';
 import { set_refresh_token_cookie } from '../../../auth/utils.js';
-import { auth_header_validator, id_param_validator, json_validator, query_validator, cookie_validator } from '../../../utils/validators.js'
+import { auth_header_validator, id_param_validator, json_validator, query_validator, cookie_validator, param_validator } from '../../../utils/validators.js'
 import { refresh_response_schema, refresh_cookie_schema, update_one_req } from './scheme.js';
 import {service} from "./service.js"
 import { logger } from '../../../utils/logger.js';
 import { one_schema } from '../../../schemas/jwt.js';
 import { auth_error_response_schema, AuthError, AuthError_ReasonEnum, new_auth_error_response} from '../../../auth/errors.js';
+import { object } from 'valibot';
+import { uuid_schema } from '../../../schemas/general.js';
 
 export const jwts_route = new Hono()  
 
@@ -169,7 +171,124 @@ jwts_route.put(
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
             }
-            logger.error({error: e}, "Error in PUT /users/:id")
+            logger.error({error: e}, "Error in PUT /jwts/:id")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
+
+    }    
+)
+
+jwts_route.put(
+    "/jwts/:id/ban",
+    describeRoute({
+        tags: ["JWTs"],
+        summary: "Ban One",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Ban JWT"),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    id_param_validator(),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization") as string
+            let id = c.req.param("id")
+            await service.ban_one(id, auth_header.slice(7))
+            return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
+        } catch(e: any) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
+            logger.error({error: e}, "Error in PUT /jwts/:id")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
+
+    }    
+)
+
+jwts_route.put(
+    "/jwts/family/:family_id/ban",
+    describeRoute({
+        tags: ["JWTs"],
+        summary: "Ban JWTs by family_id",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Ban JWTs by family_id"),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    param_validator(object({ family_id: uuid_schema }), "Invalid family's id"),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization") as string
+            let id = c.req.param("family_id")
+            await service.ban_jwts_with_filters(auth_header.slice(7), undefined, id)
+            return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
+        } catch(e: any) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
+            logger.error({error: e}, "Error in PUT /jwts/:id")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
+
+    }    
+)
+
+jwts_route.put(
+    "/jwts/user/:user_id/ban",
+    describeRoute({
+        tags: ["JWTs"],
+        summary: "Ban JWTs by user_id",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Ban JWTs by user_id"),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    param_validator(object({ user_id: uuid_schema }), "Invalid user's id"),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization") as string
+            let id = c.req.param("user_id")
+            await service.ban_jwts_with_filters(auth_header.slice(7), id, undefined)
+            return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
+        } catch(e: any) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
+            logger.error({error: e}, "Error in PUT /jwts/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
 

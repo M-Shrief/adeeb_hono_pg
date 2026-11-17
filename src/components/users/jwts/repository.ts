@@ -189,18 +189,6 @@ const update_one = async(id: string, data: any) => {
     }
 }    
 
-const ban_one_by_id = async(id: string, data: any) => {
-    try {        
-        await update_one(id, {is_banned: true})
-        return null
-    } catch(e: any) {
-        if ((e.cause as any).code === "23505") {
-            throw new APIError(HttpStatusCode.CONFLICT, "repository")
-        }
-        logger.error({error: e}, "Error in PUT /jwts/:id")
-        throw new APIError(HttpStatusCode.BAD_REQUEST, "repository")
-    }
-}    
 
 const ban_jwts_with_filters = async(user_id?: string, family_id?: string) => {
     try {        
@@ -298,7 +286,6 @@ export const repository = {
     new_tokens,
     get_all,
     get_one_by_id,
-    ban_one_by_id,
     ban_jwts_with_filters,
     update_one,
     delete_one,
