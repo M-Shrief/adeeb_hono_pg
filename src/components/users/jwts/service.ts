@@ -139,10 +139,28 @@ const get_one_by_id = async (id: string, token: string) => {
     }    
 }
 
+const update_one = async(id: string, token: string, data: any) => {
+    try {
+        await verify_admin_user(token, "write")        
+        let repo_result = await repository.update_one(id, data)
+        return repo_result
+    } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            logger.error({error:e}, "Error in PUT /jwts/:id")
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }
+}
 
 export const service = {
     new_tokens,
     refresh,
     get_all,
     get_one_by_id,
+    update_one,
 }

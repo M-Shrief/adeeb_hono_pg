@@ -7,7 +7,7 @@ import { HttpStatusCode, get_described_route, describe_jwt_security } from '../.
 import { base_response_schema, queries_schema_for_get_all_req, get_all_schema, InvalidItemType} from '../../../schemas/api.js';
 import { set_refresh_token_cookie } from '../../../auth/utils.js';
 import { auth_header_validator, id_param_validator, json_validator, query_validator, cookie_validator } from '../../../utils/validators.js'
-import { refresh_response_schema, refresh_cookie_schema } from './scheme.js';
+import { refresh_response_schema, refresh_cookie_schema, update_one_req } from './scheme.js';
 import {service} from "./service.js"
 import { logger } from '../../../utils/logger.js';
 import { one_schema } from '../../../schemas/jwt.js';
@@ -131,5 +131,47 @@ jwts_route.get(
             logger.error({error: e}, "Error in GET /jwts/:id")
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
+    }    
+)
+
+jwts_route.put(
+    "/jwts/:id",
+    describeRoute({
+        tags: ["JWTs"],
+        summary: "Update One",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Update JWT", one_schema),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
+           ...get_described_route(HttpStatusCode.NOT_FOUND, "JWT's not found", base_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    id_param_validator(),
+    json_validator(update_one_req, "Invalid data for updating JWT"),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization") as string
+            let id = c.req.param("id")
+            let new_data = await c.req.json()
+            await service.update_one(id, auth_header.slice(7), new_data)
+            return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
+        } catch(e: any) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
+            logger.error({error: e}, "Error in PUT /users/:id")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
+
     }    
 )

@@ -1,6 +1,8 @@
-import { InferInput ,array, maxLength, maxValue, minValue, number, object, optional, pipe, string, toNumber } from "valibot";
+import { InferInput ,array, boolean, maxLength, maxValue, minValue, number, object, optional, pipe, string, toNumber } from "valibot";
 ////
 import { RoleEnumType, TokenType } from "../../../database/schemas.js";
+import { exp_schema, iat_schema, token_type_schema } from "../../../schemas/jwt.js"
+import { uuid_schema } from "../../../schemas/general.js";
 
 export type JWTType = {
  jti: string;
@@ -24,3 +26,13 @@ export const refresh_cookie_schema = object({
 })
 
 export const refresh_response_schema = object({access_token: string()})
+
+export const update_one_req = object({
+    family_id: optional(uuid_schema),
+    used: optional(boolean()),
+    is_banned: optional(boolean()),
+    token_type: optional(token_type_schema),
+    exp: optional(exp_schema),
+    iat: optional(iat_schema),
+    user_id: optional(uuid_schema),
+})
