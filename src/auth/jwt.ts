@@ -111,7 +111,7 @@ export async function create_permissions(roles: RoleEnumType[]) {
     return permissions
 }
 
-export const check_if_banned = (authorized_list: string[], permissions: string[], op: OPType = "read") => {
+export const check_if_banned = (permissions: string[], op: OPType = "read") => {
     let is_banned = false
 
     for (let perm of permissions) {
