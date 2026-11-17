@@ -4,7 +4,7 @@ import { APIError } from "../../utils/errors.js"
 import { logger } from "../../utils/logger.js"
 import { repository } from "./repository.js"
 import { verify_jwt} from "../../auth/jwt.js"
-import { verify_admin_user, verify_normal_user, check_if_adminstrator, check_item_ownership} from "../../auth/utils.js"
+import { verify_admin_user, verify_normal_user, check_admin_permissions, check_item_ownership} from "../../auth/utils.js"
 import { AuthError, AuthError_ReasonEnum } from "../../auth/errors.js"
 
 
@@ -56,7 +56,7 @@ const get_one_by_id = async(id: string, token: string) => {
             throw new AuthError(result.error, "service")
         }
         let checked_order = await repository.check_order(id)
-        let is_authorized = check_if_adminstrator(result.claims.permissions!, "read")
+        let is_authorized = check_admin_permissions(result.claims.permissions!, "read")
         if (!is_authorized) {
             if (check_item_ownership(checked_order.user_id, result.claims) == false) {
                 throw new AuthError(AuthError_ReasonEnum.PERM, "service")
@@ -117,7 +117,7 @@ const create_print = async(order_id: string, token: string, new_data: any) => {
             throw new AuthError(result.error, "service")
         }
         let checked_order = await repository.check_order(order_id)
-        let is_authorized = check_if_adminstrator(result.claims.permissions!, "write")
+        let is_authorized = check_admin_permissions(result.claims.permissions!, "write")
         if (!is_authorized) {
             if (check_item_ownership(checked_order.user_id, result.claims) == false) {
                 throw new AuthError(AuthError_ReasonEnum.PERM, "service")
@@ -149,7 +149,7 @@ const create_prints = async(order_id: string, token: string, new_data: any[]) =>
             throw new AuthError(result.error, "service")
         }
         let checked_order = await repository.check_order(order_id)
-        let is_authorized = check_if_adminstrator(result.claims.permissions!, "write")
+        let is_authorized = check_admin_permissions(result.claims.permissions!, "write")
         if (!is_authorized) {
             if (check_item_ownership(checked_order.user_id, result.claims) == false) {
                 throw new AuthError(AuthError_ReasonEnum.PERM, "service")
@@ -181,7 +181,7 @@ const update_order = async(id: string, token: string, data: any) => {
             throw new AuthError(result.error, "service")
         }
         let checked_order = await repository.check_order(id)
-        let is_authorized = check_if_adminstrator(result.claims.permissions!, "write")
+        let is_authorized = check_admin_permissions(result.claims.permissions!, "write")
         if (!is_authorized) {
             if (check_item_ownership(checked_order.user_id, result.claims) == false) {
                 throw new AuthError(AuthError_ReasonEnum.PERM, "service")
@@ -218,7 +218,7 @@ const update_print = async(order_id: string, print_id: string, token: string, da
             throw new AuthError(result.error, "service")
         }
         let checked_order = await repository.check_order(order_id)
-        let is_authorized = check_if_adminstrator(result.claims.permissions!, "write")
+        let is_authorized = check_admin_permissions(result.claims.permissions!, "write")
         if (!is_authorized) {
             if (check_item_ownership(checked_order.user_id, result.claims) == false) {
                 throw new AuthError(AuthError_ReasonEnum.PERM, "service")
@@ -250,7 +250,7 @@ const delete_order = async(id: string, token: string) => {
             throw new AuthError(result.error, "service")
         }
         let checked_order = await repository.check_order(id)
-        let is_authorized = check_if_adminstrator(result.claims.permissions!, "write")
+        let is_authorized = check_admin_permissions(result.claims.permissions!, "write")
         if (!is_authorized) {
             if (check_item_ownership(checked_order.user_id, result.claims) == false) {
                 throw new AuthError(AuthError_ReasonEnum.PERM, "service")
@@ -282,7 +282,7 @@ const delete_print = async(order_id: string, print_id: string, token: string) =>
             throw new AuthError(result.error, "service")
         }
         let checked_order = await repository.check_order(order_id)
-        let is_authorized = check_if_adminstrator(result.claims.permissions!, "write")
+        let is_authorized = check_admin_permissions(result.claims.permissions!, "write")
         if (!is_authorized) {
             if (check_item_ownership(checked_order.user_id, result.claims) == false) {
                 throw new AuthError(AuthError_ReasonEnum.PERM, "service")

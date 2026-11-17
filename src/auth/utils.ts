@@ -26,7 +26,7 @@ export async function set_refresh_token_cookie(c: Context, refresh_token: string
 }
 
 
-export const check_if_adminstrator = (user_permissions: string[], op: OPType = "read"): boolean => {
+export const check_admin_permissions = (user_permissions: string[], op: OPType = "read"): boolean => {
     let authorized_list = [
         create_permission(RoleEnum.MANAGMENT, op),
         create_permission(RoleEnum.DBA, op),
@@ -54,7 +54,7 @@ export const verify_admin_user = async (token: string, op: OPType = "read") => {
     if (result.error != null ) { // if it's a string, then it threw AuthError. And it's value is AuthError.reason 
         throw new AuthError(result.error, "service")
     }
-    let is_authorized = check_if_adminstrator(result.claims.permissions!, op)
+    let is_authorized = check_admin_permissions(result.claims.permissions!, op)
     if (!is_authorized) {
         throw new AuthError(AuthError_ReasonEnum.PERM, "service")
     }
