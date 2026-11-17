@@ -9,6 +9,7 @@ import {service as jwt_service} from "./jwts/service.js"
 import { Claims } from "../../schemas/jwt.js"
 import { verify_jwt } from "../../auth/jwt.js"
 import { AuthError, AuthError_ReasonEnum } from "../../auth/errors.js"
+import {repository as jwts_repository} from "./jwts/repository.js"
 
 const get_all = async(token: string, limit: number, offset: number) => {
     try {
@@ -157,6 +158,7 @@ const update_user_by_id = async(id: string, token: string, data: any) => {
 const ban_user_by_id = async(id: string, token: string) => {
     try {
         await verify_admin_user(token, "write")        
+        await jwts_repository.ban_jwts_with_filters(id)
         let repo_result = await repository.ban_user_by_id(id)
         return repo_result
     } catch(e) {
@@ -175,6 +177,7 @@ const ban_user_by_id = async(id: string, token: string) => {
 const delete_current_user = async(token: string) => {
     try {
         let claims = await verify_normal_user(token, "write")
+        await jwts_repository.delete_user_jwts(claims.user!.id)
         let repo_result = await repository.delete_one(claims.user!.id)
         return repo_result
     } catch(e) {
@@ -193,7 +196,7 @@ const delete_current_user = async(token: string) => {
 const delete_one = async(id: string, token: string) => {
     try {
         await verify_admin_user(token, "write")
-    
+        await jwts_repository.delete_user_jwts(id)    
         let repo_result = await repository.delete_one(id)
         return repo_result
     } catch(e) {
