@@ -300,6 +300,7 @@ export const repository = {
     get_one_by_id,
     ban_one_by_id,
     ban_jwts_with_filters,
+    update_one,
     delete_one,
     delete_user_jwts,
     cleanup,
