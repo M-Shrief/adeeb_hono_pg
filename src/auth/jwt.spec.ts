@@ -9,30 +9,30 @@ import { ACCESS_EXP_MIN_DELTA, REFRESH_EXP_MIN_DELTA, new_claims, check_if_permi
 import * as time_utils from "../utils/time.js"
 
 describe.concurrent("Testing Auth's JWT module", async() => {
-    describe.concurrent("Testing signing & verification", async() => {
-        let jti = randomUUID()
-        let family_id = randomUUID()
-        let user = {
-            id: "932ba7ba-8a4f-4282-8ca4-d0f9c0813bc1",
-            username: "username1",
-            roles: [RoleEnum.NORMAL, RoleEnum.DBA]
-        }
-        let permissions = await create_permissions(user.roles)
-        let access_data = {
-            jti,
-            family_id,
-            token_type: TokenTypeEnum.ACCESS,
-            exp: time_utils.NowWithDelta(ACCESS_EXP_MIN_DELTA),
-            iat: time_utils.Now()
-        }
-        let refreh_data = {
-            jti,
-            family_id,
-            token_type: TokenTypeEnum.REFRESH,
-            exp: time_utils.NowWithDelta(REFRESH_EXP_MIN_DELTA),
-            iat: time_utils.Now()
-        }
+    let jti = randomUUID()
+    let family_id = randomUUID()
+    let user = {
+        id: "932ba7ba-8a4f-4282-8ca4-d0f9c0813bc1",
+        username: "username1",
+        roles: [RoleEnum.NORMAL, RoleEnum.DBA]
+    }
+    let permissions = await create_permissions(user.roles)
+    let access_data = {
+        jti,
+        family_id,
+        token_type: TokenTypeEnum.ACCESS,
+        exp: time_utils.NowWithDelta(ACCESS_EXP_MIN_DELTA),
+        iat: time_utils.Now()
+    }
+    let refreh_data = {
+        jti,
+        family_id,
+        token_type: TokenTypeEnum.REFRESH,
+        exp: time_utils.NowWithDelta(REFRESH_EXP_MIN_DELTA),
+        iat: time_utils.Now()
+    }
 
+    describe.concurrent("Testing sign_jwt()", async() => {
         test("Correctly sign_jwt() for access token", async() => {
             let access_claims = await new_claims(access_data, user)
             let token = await sign_jwt(access_claims)
@@ -86,7 +86,9 @@ describe.concurrent("Testing Auth's JWT module", async() => {
             let payload_perms = payload["permissions"]
             expect(payload_perms).toBeUndefined()
         })
+    })
 
+    describe.concurrent("Testing verify_jwt()", async() => {
         test("Testing verify_token() for access token", async() => {
             let token = await sign(
                 {
@@ -136,6 +138,7 @@ describe.concurrent("Testing Auth's JWT module", async() => {
             expect(result.claims!.permissions).toBeUndefined()
         })
     })
+
     test("testing new_claims()", async() => {
         let jti = randomUUID()
         let family_id = randomUUID()
