@@ -65,7 +65,7 @@ jwts_route.get(
         summary: "Get All",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.OK, "Get All Users", get_all_schema(one_schema)),
+           ...get_described_route(HttpStatusCode.OK, "Get All JWTs", get_all_schema(one_schema)),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
@@ -115,8 +115,8 @@ jwts_route.get(
         try {
             let auth_header = c.req.header("Authorization") as string // header was already validated
             let id = c.req.param("id")
-            let existing_user = await service.get_one_by_id(id, auth_header.slice(7))
-            return c.json(existing_user, HttpStatusCode.OK)
+            let existing_jwt = await service.get_one_by_id(id, auth_header.slice(7))
+            return c.json(existing_jwt, HttpStatusCode.OK)
 
         } catch(e) {
             if(e instanceof AuthError) {
@@ -166,7 +166,7 @@ jwts_route.put(
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
-                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                        return c.json({message: "JWTname already exists"}, HttpStatusCode.CONFLICT)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -205,7 +205,7 @@ jwts_route.put(
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
-                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                        return c.json({message: "JWTname already exists"}, HttpStatusCode.CONFLICT)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -244,7 +244,7 @@ jwts_route.put(
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
-                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                        return c.json({message: "JWTname already exists"}, HttpStatusCode.CONFLICT)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -257,23 +257,23 @@ jwts_route.put(
 )
 
 jwts_route.put(
-    "/jwts/user/:user_id/ban",
+    "/jwts/jwt/:jwt_id/ban",
     describeRoute({
         tags: ["JWTs"],
-        summary: "Ban JWTs by user_id",
+        summary: "Ban JWTs by jwt_id",
         ...describe_jwt_security,
         responses: {
-           ...get_described_route(HttpStatusCode.NO_CONTENT, "Ban JWTs by user_id"),
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Ban JWTs by jwt_id"),
            ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
            ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
         },
     }),
     auth_header_validator(),
-    param_validator(object({ user_id: uuid_schema }), "Invalid user's id"),
+    param_validator(object({ jwt_id: uuid_schema }), "Invalid jwt's id"),
     async(c) => {
         try {
             let auth_header = c.req.header("Authorization") as string
-            let id = c.req.param("user_id")
+            let id = c.req.param("jwt_id")
             await service.ban_jwts_with_filters(auth_header.slice(7), id, undefined)
             return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
         } catch(e: any) {
@@ -283,7 +283,7 @@ jwts_route.put(
             if(e instanceof APIError) {
                 switch(e.status_code) {
                     case HttpStatusCode.CONFLICT:
-                        return c.json({message: "Username already exists"}, HttpStatusCode.CONFLICT)
+                        return c.json({message: "JWTname already exists"}, HttpStatusCode.CONFLICT)
                     default:
                         return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
                 }
@@ -292,5 +292,81 @@ jwts_route.put(
             return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
         }
 
+    }    
+)
+
+jwts_route.delete(
+    "/jwts/cleanup",
+    describeRoute({
+        tags: ["JWTs"],
+        summary: "Cleanup",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Cleanup"),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
+           ...get_described_route(HttpStatusCode.NOT_FOUND, "JWT's not found", base_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization") as string
+            await service.cleanup(auth_header.slice(7))
+            return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
+        } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "JWT is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
+            logger.error({error: e}, "Error in DELETE /jwts/:id")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
+    }    
+)
+
+jwts_route.delete(
+    "/jwts/:id",
+    describeRoute({
+        tags: ["JWTs"],
+        summary: "Delete One",
+        ...describe_jwt_security,
+        responses: {
+           ...get_described_route(HttpStatusCode.NO_CONTENT, "Delete JWT"),
+           ...get_described_route(HttpStatusCode.UNAUTHORIZED, "Not Authorized", auth_error_response_schema),
+           ...get_described_route(HttpStatusCode.NOT_FOUND, "JWT's not found", base_response_schema),
+           ...get_described_route(HttpStatusCode.BAD_REQUEST, "Bad Request", base_response_schema),
+        },
+    }),
+    auth_header_validator(),
+    id_param_validator(),
+    async(c) => {
+        try {
+            let auth_header = c.req.header("Authorization") as string
+            let id = c.req.param("id")
+            await service.delete_one(id, auth_header.slice(7))
+            return c.newResponse(null, HttpStatusCode.NO_CONTENT)            
+        } catch(e) {
+            if(e instanceof AuthError) {
+                return new_auth_error_response(c, e.reason) 
+            }
+            if(e instanceof APIError) {
+                switch(e.status_code) {
+                    case HttpStatusCode.CONFLICT:
+                        return c.json({message: "JWT is refrenced in other tables"}, HttpStatusCode.CONFLICT)
+                    default:
+                        return c.json({message: "Unknown error, try again later"}, HttpStatusCode.BAD_REQUEST)
+                }
+            }
+            logger.error({error: e}, "Error in DELETE /jwts/:id")
+            return c.json({message: "Bad Request, try again later."}, HttpStatusCode.BAD_REQUEST)
+        }
     }    
 )

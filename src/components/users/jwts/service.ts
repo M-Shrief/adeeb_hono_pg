@@ -193,7 +193,41 @@ const ban_jwts_with_filters = async(token: string, user_id?: string, family_id?:
     }
 }
 
+const delete_one = async(id: string, token: string) => {
+    try {
+        await verify_admin_user(token, "write")
+    
+        let repo_result = await repository.delete_one(id)
+        return repo_result
+    } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }
+}
 
+const cleanup = async(token: string) => {
+    try {
+        await verify_admin_user(token, "write")
+    
+        let repo_result = await repository.cleanup()
+        return repo_result
+    } catch(e) {
+        if(e instanceof AuthError) {
+            throw e
+        }
+        if(e instanceof APIError) {
+            throw e
+        } else {
+            throw new APIError(HttpStatusCode.BAD_REQUEST, "service")
+        }
+    }
+}
 
 
 
@@ -205,4 +239,6 @@ export const service = {
     update_one,
     ban_one,
     ban_jwts_with_filters,
+    delete_one,
+    cleanup,
 }
