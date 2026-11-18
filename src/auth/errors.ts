@@ -9,7 +9,7 @@ export class AuthError extends APIError {
   constructor(
     public readonly reason: AuthError_ReasonEnumType = AuthError_ReasonEnum.UNKNOWN,
     public readonly caused_in: CausedIn,
-    message: string = "API Error",
+    message: string = "Auth Error",
   ) {
     super(HttpStatusCode.UNAUTHORIZED, caused_in, message);
     this.name = "AuthError";

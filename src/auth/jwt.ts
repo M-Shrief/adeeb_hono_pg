@@ -39,7 +39,6 @@ export async function verify_jwt(token: string, type: TokenType = TokenTypeEnum.
         return {claims, error: null}
 
     } catch(e) {
-        logger.error(`Error verifing JWT, error: ${e}`)
         if(e instanceof ValiError) {
             return {claims: null, error: AuthError_ReasonEnum.INVALID_CLAIMS}
         }
@@ -52,7 +51,7 @@ export async function verify_jwt(token: string, type: TokenType = TokenTypeEnum.
         if(e instanceof jwt_classes.JwtTokenInvalid) {
             return {claims: null, error: AuthError_ReasonEnum.INVALID_TOKEN}
         }
-        // logger.error(`Error verifing JWT, error: ${e}`)
+        logger.error(`Error verifing JWT, error: ${e}`)
         return {claims: null, error: AuthError_ReasonEnum.UNKNOWN}
     }
 } 
